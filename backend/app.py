@@ -5,10 +5,11 @@ Run:  python app.py   (listens on http://127.0.0.1:5050)
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-from sentence.sentence import split_sentences
+from sentence.sentence import SentenceAnalyzer
 from word.word import analyze_word
 
 app = Flask(__name__)
+analyzer = SentenceAnalyzer()
 CORS(app)  # lets the extension popup (chrome-extension:// / moz-extension://) call us
 
 MAX_CHARS = 20000
@@ -24,7 +25,7 @@ def sentences():
     text = (request.get_json(silent=True) or {}).get("text", "")
     if not isinstance(text, str) or not text.strip():
         return jsonify(error="text is required"), 400
-    result = split_sentences(text[:MAX_CHARS])
+    result = analyzer.split_sentences(text[:MAX_CHARS])
     return jsonify(sentences=result, count=len(result))
 
 

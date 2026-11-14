@@ -1,6 +1,10 @@
 from flask import Flask, jsonify, request
 
+from sentence.sentence import SentenceAnalyzer
+
+
 app = Flask(__name__)
+analyzer = SentenceAnalyzer()  # 模型懒加载，第一次请求时才 load，之后复用
 
 
 @app.get("/health")
@@ -17,7 +21,10 @@ def health():
 
 @app.post("/get_word_highlight")
 def get_word_highlight():
-    """Single word highlight, return an array of every single index of that word that should be highlighted"""
+    """Single word highlight, return an array of every single index of that word that should be highlighted, starting from 0. For example: hello will return [0,1,2]"""
+    raw_word = request.data
+
+    return jsonify([])
 
 
 @app.post("/get_sentence_highlight")
@@ -31,21 +38,7 @@ def get_sentence_highlight():
     items = data.get("items", [])
     punctuation = data.get("punctuation", [])
 
-    print(items)
-    print(punctuation)
-
-
-    merged_sentence : str = ""
-    for i in range(0, len(items)):
-        merged_sentence += items[i] + " "
-        for single_pun in punctuation: # it's very short here, please don't do shitty leetcode algorithm for O(1) effciency.
-            if(single_pun[0] == i):
-                merged_sentence += single_pun[1]
-                break # let's assume there is only 1 pun
-
-    print(merged_sentence)
-    
-    return jsonify(finished="true")
+    return jsonify(analyzer.get_sentence_highlight(items, punctuation))
 
 
 if __name__ == "__main__":
