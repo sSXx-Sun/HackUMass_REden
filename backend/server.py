@@ -1,10 +1,12 @@
 from flask import Flask, jsonify, request
 
 from sentence.sentence import SentenceAnalyzer
+from word.word import WordAnalyzer
 
 
 app = Flask(__name__)
 analyzer = SentenceAnalyzer()  # 模型懒加载，第一次请求时才 load，之后复用
+word_analyzer = WordAnalyzer()  # 启动时预热一次（约 3~4 秒），之后每个词很快
 
 
 @app.get("/health")
@@ -22,9 +24,18 @@ def health():
 @app.post("/get_word_highlight")
 def get_word_highlight():
     """Single word highlight, return an array of every single index of that word that should be highlighted, starting from 0. For example: hello will return [0,1,2]"""
-    raw_word = request.data
+    # 支持 JSON {"word": "hello"}，也支持直接把单词当请求体发（text/plain）
+    data = request.get_json(force=True, silent=True)
+    if isinstance(data, dict):
+        w = data.get("word", "")
+    elif isinstance(data, str):
+        w = data
+    else:
+        w = request.get_data(as_text=True)
+    if not isinstance(w, str) or not w.strip():
+        return jsonify(error="word is required"), 400
 
-    return jsonify([])
+    return jsonify(word_analyzer.bold(w.strip()[:100]))
 
 
 @app.post("/get_sentence_highlight")
