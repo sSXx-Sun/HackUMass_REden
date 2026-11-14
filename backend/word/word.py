@@ -12,6 +12,7 @@
 
 import math
 import os
+import threading
 from functools import lru_cache
 
 LO, HI = 0.25, 0.65  # 加粗词长的 25% 到 65%
@@ -119,6 +120,38 @@ def word(w: str) -> list[int]:
     if near:
         knee = min(near, key=lambda m: (abs(m - knee), -m))  # 最近的词素边界，距离相同取靠后的
     return list(range(knee))
+
+
+class WordAnalyzer:
+    """初始化时预热一次（加载词表 + spaCy 词形还原器，并跑几个词把缓存热起来），
+    之后 bold() 不再冷启动。底层缓存在模块级，所以 new 多个实例也只会预热一次。"""
+
+    _lock = threading.Lock()
+    _warm = False
+
+    def __init__(self, warmup: bool = True):
+        if warmup:
+            self.warmup()
+
+    def warmup(self) -> None:
+        cls = WordAnalyzer
+        if cls._warm:
+            return
+        with cls._lock:  # 防止多个线程同时预热
+            if cls._warm:
+                return
+            _vocab()
+            _lemmatizer()
+            for w in ("reading", "running", "unhappy", "children"):  # 走一遍完整流程
+                word(w)
+            cls._warm = True
+
+    def bold(self, w: str) -> list[int]:
+        """返回要加粗的字母下标列表，同 word(w)。"""
+        return word(w)
+
+    __call__ = bold
+
 
 def analyze_word(word_text: str) -> dict | None:
     """Return basic linguistic info for a single word, or None if empty (used by app.py /word)."""
