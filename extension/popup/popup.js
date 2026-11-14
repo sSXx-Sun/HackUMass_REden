@@ -1,17 +1,20 @@
 // Cross-browser shim: Firefox exposes `browser`, Chromium exposes `chrome`.
 const api = globalThis.browser ?? globalThis.chrome;
-const core = globalThis.ReaDeNCore; // from ../shared/core.js
+const core = globalThis.REdenCore; // from ../shared/core.js
+const I18N = globalThis.REdenI18n; // from i18n.js
+let lang = "en";
+const tx = (key, vars) => I18N.t(lang, key, vars);
 
 const DEFAULTS = {
   activeTab: "home",
-  dark: false, large: false, popupSize: 14, tintSite: true, trLang: "es", words: [], notes: "",
+  dark: false, large: false, popupSize: 14, tintSite: true, lang: null, trLang: "es", words: [], notes: "",
   backendUrl: "http://127.0.0.1:5050",
   pageDark: false,
   ...core.DEFAULTS,
 };
 
 const AUTO_ORIGINS = ["http://*/*", "https://*/*"];
-const AUTO_SCRIPT_ID = "readen-bionic";
+const AUTO_SCRIPT_ID = "reden-bionic";
 const CONTENT_FILES = ["shared/core.js", "content/bionic.js"];
 const PREVIEW_TEXT = "Bionic reading helps your eyes glide through text by bolding the start of every word.";
 const SPECIMEN_TEXT = "Your eyes find each word faster when its start stands out.";
@@ -95,7 +98,7 @@ function siteTokens(site, dark) {
     const blue = ensureContrast(site, paper, K, 5);
     return {
       "--paper": css(paper), "--field": "#FFFFFF", "--rule": css(mix(W, site, 0.13)), "--lav": css(mix(W, site, 0.08)),
-      "--ink": css(ink), "--muted": css(ensureContrast(mix(ink, paper, 0.3), paper, K, 4.6)),
+      "--ink": css(ink), "--brand": css(ensureContrast(mix(K, site, 0.6), paper, K, 7)), "--muted": css(ensureContrast(mix(ink, paper, 0.3), paper, K, 4.6)),
       "--blue": css(blue), "--on-blue": contrast(W, blue) >= contrast(K, blue) ? "#FFFFFF" : "#000000",
     };
   }
@@ -105,13 +108,13 @@ function siteTokens(site, dark) {
   const blue = ensureContrast(site, paper, W, 5);
   return {
     "--paper": css(paper), "--field": css(mix([12, 12, 16], site, 0.07)), "--rule": css(mix(base, site, 0.22)),
-    "--lav": css(mix(base, site, 0.25)), "--ink": css(ink),
+    "--lav": css(mix(base, site, 0.25)), "--ink": css(ink), "--brand": css(ensureContrast(mix(W, site, 0.45), paper, W, 7)),
     "--muted": css(ensureContrast(mix(ink, paper, 0.3), paper, W, 4.6)),
     "--blue": css(blue), "--on-blue": contrast(W, blue) >= contrast(K, blue) ? "#FFFFFF" : "#000000",
   };
 }
 function applyTint() {
-  const names = ["--paper", "--field", "--rule", "--lav", "--ink", "--muted", "--blue", "--on-blue"];
+  const names = ["--paper", "--field", "--rule", "--lav", "--ink", "--brand", "--muted", "--blue", "--on-blue"];
   const tokens = saved.tintSite && siteColor ? siteTokens(siteColor, !!saved.dark) : null;
   for (const n of names) {
     if (tokens) document.body.style.setProperty(n, tokens[n]);
@@ -160,6 +163,54 @@ function applyTheme({ dark, popupSize }) {
   applyTint();
 }
 
+// ---------- LANGUAGE ----------
+// The first time the popup opens it asks for a language. It can be changed later in Settings.
+function guessLang() {
+  const code = String((navigator.language || "en")).slice(0, 2).toLowerCase();
+  return I18N.LANGS.some(([c]) => c === code) ? code : "en";
+}
+function setLanguage(code) {
+  lang = I18N.LANGS.some(([c]) => c === code) ? code : "en";
+  saved.lang = lang;
+  I18N.apply(document, lang);
+  const sel = $("opt-lang");
+  if (sel) sel.value = lang;
+  // Translation target follows the chosen language when it is one we can translate into.
+  const trSel = $("tr-lang");
+  if (trSel && lang !== "en" && [...trSel.options].some((o) => o.value === lang)) {
+    trSel.value = lang;
+    trSel.dispatchEvent(new Event("change"));
+  }
+  if (activeTabInfo) {
+    refreshStatus();
+    rerenderWords();
+  }
+}
+function showWelcome() {
+  const guess = guessLang();
+  $("welcome-title").textContent = I18N.t(guess, "welcome_title");
+  $("welcome-sub").textContent = I18N.t(guess, "welcome_sub");
+  const list = $("welcome-list");
+  list.textContent = "";
+  const ordered = [...I18N.LANGS].sort((a, b) => (b[0] === guess) - (a[0] === guess));
+  for (const [code, name] of ordered) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "lang-btn" + (code === guess ? " guess" : "");
+    b.lang = code;
+    b.dir = I18N.RTL.has(code) ? "rtl" : "ltr";
+    b.textContent = name;
+    b.addEventListener("click", () => {
+      setLanguage(code);
+      storageSet({ lang: code, trLang: $("tr-lang").value });
+      $("welcome").hidden = true;
+    });
+    list.append(b);
+  }
+  $("welcome").hidden = false;
+  list.querySelector("button").focus();
+}
+
 // ---------- BIONIC READING ----------
 const bioSwitches = [...document.querySelectorAll("[data-bio-switch]")];
 const bioStatus = [...document.querySelectorAll("[data-bio-status]")];
@@ -179,7 +230,7 @@ function sendToTab(msg) {
 // Make sure the content script is running in the current tab (uses the activeTab permission).
 async function ensureInjected() {
   if (!activeTabInfo) return false;
-  try { if (await sendToTab({ type: "readen:status" })) return true; } catch (_) { /* not injected yet */ }
+  try { if (await sendToTab({ type: "reden:status" })) return true; } catch (_) { /* not injected yet */ }
   try {
     await call(() => api.scripting.executeScript({ target: { tabId: activeTabInfo.id }, files: CONTENT_FILES }));
     return true;
@@ -192,24 +243,26 @@ async function refreshStatus() {
   const chk = core.checkUrl(activeTabInfo && activeTabInfo.url);
   if (!chk.ok) {
     return setStatus(
-      chk.reason + (saved.bionicOn ? " It will still apply on supported pages." : ""),
+      chk.reason + (saved.bionicOn ? " " + tx("s_still") : ""),
       "warn"
     );
   }
   if (!saved.bionicOn) {
-    return setStatus(saved.bionicAuto ? "Bionic reading is off, so new pages stay as they are." : "Bionic reading is off.", null);
+    return setStatus(saved.bionicAuto ? tx("s_off_auto") : tx("s_off"), null);
   }
   const ok = await ensureInjected();
-  if (!ok) return setStatus("This site blocks extensions, so REden can't format it. Try another page.", "warn");
-  await new Promise((r) => setTimeout(r, 150)); // let the first batch finish
+  if (!ok) return setStatus(tx("s_blocked"), "warn");
   try {
-    const s = await sendToTab({ type: "readen:status" });
-    setStatus(
-      s && s.active ? `Bionic reading is on. ${s.words} word${s.words === 1 ? "" : "s"} formatted on this page.` : "Formatting this page…",
-      "ok"
-    );
+    let s = await sendToTab({ type: "reden:recheck" }).then(() => sendToTab({ type: "reden:status" }));
+    // The page script is still reading its settings or asking the backend: wait a moment for the answer.
+    for (let i = 0; i < 10 && s && (s.phase === "checking" || s.phase === "off"); i++) {
+      await new Promise((r) => setTimeout(r, 400));
+      s = await sendToTab({ type: "reden:status" });
+    }
+    if (s && s.offline) return setStatus(tx("s_offline"), "warn");
+    setStatus(s && s.active && !(s.busy && s.words === 0) ? tx("s_on", { n: s.words }) : tx("s_formatting"), "ok");
   } catch (_) {
-    setStatus("This page isn't responding. Reload it and turn Bionic reading on again.", "warn");
+    setStatus(tx("s_noresp"), "warn");
   }
 }
 
@@ -269,22 +322,22 @@ async function setAuto(want, box) {
     try { granted = await call(() => api.permissions.request({ origins: AUTO_ORIGINS })); } catch (_) {}
     if (!granted) {
       box.checked = false;
-      return note("auto-msg", "Permission wasn't granted, so Automatic mode stays off.");
+      return note("auto-msg", tx("a_denied"));
     }
     try { await registerAuto(); }
     catch (_) {
       box.checked = false;
-      return note("auto-msg", "Couldn't turn on Automatic mode in this browser.");
+      return note("auto-msg", tx("a_fail"));
     }
     saved.bionicAuto = true;
     await storageSet({ bionicAuto: true });
-    note("auto-msg", "Automatic mode is on. New pages are formatted when Bionic reading is on.");
+    note("auto-msg", tx("a_on"));
   } else {
     await unregisterAuto();
     try { await call(() => api.permissions.remove({ origins: AUTO_ORIGINS })); } catch (_) {}
     saved.bionicAuto = false;
     await storageSet({ bionicAuto: false });
-    note("auto-msg", "Automatic mode is off and the website permission was removed.");
+    note("auto-msg", tx("a_off"));
   }
   refreshStatus();
 }
@@ -393,17 +446,85 @@ async function getPageText() {
   return (res && res[0] && res[0].result) || "";
 }
 
+// ---------- PAGE WORDS ----------
+// Runs inside the page: returns the page's visible text. Text pieces in the same block are joined
+// directly (so bold pieces like <b>Yo</b>ur stay one word), and different blocks are separated by a newline.
+function pageTextForWords() {
+  const SKIP = /^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE|IFRAME|SVG|MATH|TEXTAREA|INPUT|SELECT|OPTION)$/i;
+  const root = document.body || document.documentElement;
+  const blocks = new WeakMap();
+  const blockOf = (el) => {
+    if (!el || el === root) return root;
+    if (!blocks.has(el)) {
+      const d = getComputedStyle(el).display;
+      blocks.set(el, d === "inline" || d === "contents" ? blockOf(el.parentElement) : el);
+    }
+    return blocks.get(el);
+  };
+  const out = [];
+  let size = 0;
+  let prev = null;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+    acceptNode(n) {
+      if (n.nodeType === Node.TEXT_NODE) return NodeFilter.FILTER_ACCEPT;
+      if (SKIP.test(n.tagName) || (n.checkVisibility && !n.checkVisibility())) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_SKIP;
+    },
+  });
+  let n;
+  while ((n = walker.nextNode()) && size < 4000000) {
+    const b = blockOf(n.parentElement);
+    if (prev && b !== prev) out.push("\n");
+    out.push(n.nodeValue);
+    size += n.nodeValue.length;
+    prev = b;
+  }
+  return { url: location.href, title: document.title, text: out.join("") };
+}
+// Runs inside the page: prints the words to the page's own console (F12 > Console).
+function printWordsInPage(words, url) {
+  console.log("[REden] " + words.length + " words from " + url, words);
+}
+
+function initPageWords() {
+  $("pw-go").addEventListener("click", async () => {
+    $("pw-preview").textContent = "";
+    note("pw-status", tx("pw_working"));
+    let page;
+    try {
+      const res = await call(() => api.scripting.executeScript({ target: { tabId: activeTabInfo.id }, func: pageTextForWords }));
+      page = res && res[0] && res[0].result;
+    } catch (_) { return note("pw-status", tx("r_cant")); }
+    const words = page ? core.collectWords(page.text) : [];
+    if (!words.length) return note("pw-status", tx("pw_none"));
+
+    console.log("[REden] " + words.length + " words from " + page.url, words); // popup console
+    try {
+      await call(() => api.scripting.executeScript({ target: { tabId: activeTabInfo.id }, func: printWordsInPage, args: [words, page.url] }));
+    } catch (_) { /* console print is best effort */ }
+    $("pw-preview").textContent = words.slice(0, 40).join(" ") + (words.length > 40 ? " …" : "");
+
+    const unique = new Set(words.map((w) => w.toLowerCase())).size;
+    let sent = false;
+    try {
+      await apiPost("/page", { url: page.url, title: page.title, words }, saved.backendUrl);
+      sent = true;
+    } catch (_) { /* backend offline */ }
+    note("pw-status", tx("pw_done", { n: words.length, u: unique }) + " " + tx(sent ? "pw_sent" : "pw_nobackend"));
+  });
+}
+
 function initRead() {
   $("analyze").addEventListener("click", async () => {
     const list = $("r-sentences");
     list.textContent = "";
-    note("r-status", "Reading page…");
+    note("r-status", tx("r_reading"));
     let text;
     try { text = await getPageText(); }
-    catch (_) { return note("r-status", "Can't read this page (browser pages and extension stores are blocked)."); }
-    if (!text) return note("r-status", "No text found. Select some text on the page first.");
+    catch (_) { return note("r-status", tx("r_cant")); }
+    if (!text) return note("r-status", tx("r_none"));
 
-    note("r-status", "Analyzing…");
+    note("r-status", tx("r_analyzing"));
     try {
       const { sentences, count } = await apiPost("/sentences", { text }, saved.backendUrl);
       sentences.forEach((s) => {
@@ -411,25 +532,26 @@ function initRead() {
         li.textContent = s;
         list.append(li);
       });
-      note("r-status", count + " sentence" + (count === 1 ? "" : "s") + ".");
+      note("r-status", tx("r_count", { n: count }));
     } catch (_) {
-      note("r-status", "The backend isn't running. Start it with `python app.py` in the backend folder. Bionic reading works without it.");
+      note("r-status", tx("r_backend"));
     }
   });
 }
 
 // ---------- WORDS ----------
+let rerenderWords = () => {};
 function initWords() {
   const info = $("word-info");
 
   async function lookup(w) {
     info.hidden = false;
-    info.textContent = "Looking up “" + w + "”…";
+    info.textContent = tx("w_looking", { w });
     try {
       const r = await apiPost("/word", { word: w }, saved.backendUrl);
       info.textContent = "";
-      [["Word", r.word], ["Base form", r.lemma], ["Part of speech", r.pos],
-       ["Common word", r.is_stop ? "yes" : "no"]].forEach(([k, v]) => {
+      [[tx("w_word"), r.word], [tx("w_base"), r.lemma], [tx("w_pos"), r.pos],
+       [tx("w_common"), r.is_stop ? tx("yes") : tx("no")]].forEach(([k, v]) => {
         const row = document.createElement("div");
         row.className = "kv";
         const a = document.createElement("span");
@@ -440,7 +562,7 @@ function initWords() {
         info.append(row);
       });
     } catch (_) {
-      info.textContent = "The word is saved, but the backend isn't running. Start it with `python app.py` in the backend folder to see details.";
+      info.textContent = tx("w_down");
     }
   }
 
@@ -453,13 +575,13 @@ function initWords() {
       label.type = "button";
       label.className = "word-btn";
       label.textContent = w;
-      label.setAttribute("aria-label", "Look up " + w);
+      label.setAttribute("aria-label", tx("w_lookup", { w }));
       label.addEventListener("click", () => lookup(w));
       const del = document.createElement("button");
       del.type = "button";
       del.className = "remove-btn";
-      del.setAttribute("aria-label", "Remove " + w);
-      del.textContent = "Remove";
+      del.setAttribute("aria-label", tx("w_remove_aria", { w }));
+      del.textContent = tx("w_remove");
       del.addEventListener("click", () => {
         words.splice(i, 1);
         storageSet({ words });
@@ -484,6 +606,7 @@ function initWords() {
     $("word-input").value = "";
   });
 
+  rerenderWords = render;
   render();
 }
 
@@ -515,14 +638,14 @@ async function translateText(text, target) {
   if (!("Translator" in globalThis)) throw new Error("unsupported");
   const pair = { sourceLanguage: "en", targetLanguage: target };
   if ((await Translator.availability(pair)) === "unavailable") throw new Error("pair");
-  const t = await Translator.create({
+  const translator = await Translator.create({
     ...pair,
     monitor(m) {
       m.addEventListener("downloadprogress", (e) =>
-        note("tr-status", "Downloading the language pack, " + Math.round(e.loaded * 100) + "%. This happens once."));
+        note("tr-status", tx("t_download", { n: Math.round(e.loaded * 100) })));
     },
   });
-  return t.translate(text);
+  return translator.translate(text);
 }
 
 function initTranslate() {
@@ -555,20 +678,20 @@ function initTranslate() {
     out.textContent = "";
     let text = $("tr-input").value.trim();
     if (!text) {
-      note("tr-status", "Reading your selection…");
+      note("tr-status", tx("t_reading"));
       try { text = await getSelectedText(); }
-      catch (_) { return note("tr-status", "Can't read this page. Type or paste the text instead."); }
+      catch (_) { return note("tr-status", tx("t_cant")); }
     }
-    if (!text) return note("tr-status", "No text to translate. Type some, or select text on the page first.");
-    note("tr-status", "Translating…");
+    if (!text) return note("tr-status", tx("t_none"));
+    note("tr-status", tx("t_working"));
     try {
       const result = await translateText(text, sel.value);
       renderSample(out, result, false);
       note("tr-status", "");
     } catch (e) {
       note("tr-status", e.message === "pair"
-        ? "This browser can't translate English into that language yet. Try another language."
-        : "On-device translation isn't available here. It needs Chrome or Edge 138 or newer on a computer. The sample above still shows what it looks like.");
+        ? tx("t_pair")
+        : tx("t_unavail"));
     }
   });
 }
@@ -593,6 +716,18 @@ function renderStats() {
 function initSettings() {
   const dark = $("opt-dark");
   const size = $("opt-size");
+  const langSel = $("opt-lang");
+  I18N.LANGS.forEach(([code, name]) => {
+    const o = document.createElement("option");
+    o.value = code;
+    o.textContent = name;
+    langSel.append(o);
+  });
+  langSel.value = lang;
+  langSel.addEventListener("change", () => {
+    setLanguage(langSel.value);
+    storageSet({ lang: lang, trLang: $("tr-lang").value });
+  });
   const tint = $("opt-tint");
   tint.checked = saved.tintSite;
   tint.addEventListener("change", () => {
@@ -626,7 +761,7 @@ function initSettings() {
       note("pg-msg", "");
     } catch (_) {
       pgDark.checked = !pgDark.checked;
-      note("pg-msg", "Can't change this page (browser pages and extension stores are blocked).");
+      note("pg-msg", tx("pg_cant"));
     }
   });
 
@@ -636,12 +771,12 @@ function initSettings() {
     const url = $("be-url").value.trim().replace(/\/$/, "");
     saved.backendUrl = url;
     storageSet({ backendUrl: url });
-    note("be-msg", "Testing…");
+    note("be-msg", tx("be_testing"));
     try {
       const r = await fetch(url + "/health");
-      note("be-msg", r.ok ? "Connected." : "Server answered with HTTP " + r.status + ".");
+      note("be-msg", r.ok ? tx("be_ok") : tx("be_http", { n: r.status }));
     } catch (_) {
-      note("be-msg", "Not reachable. Run `python app.py` in the backend folder.");
+      note("be-msg", tx("be_no"));
     }
   });
 
@@ -652,7 +787,7 @@ function initSettings() {
     $("word-list").textContent = "";
     $("word-empty").hidden = false;
     $("word-info").hidden = true;
-    note("clear-msg", "Cleared.");
+    note("clear-msg", tx("cleared"));
   });
 }
 
@@ -662,12 +797,14 @@ function initSettings() {
   words = Array.isArray(saved.words) ? [...saved.words] : [];
   if (saved.large && saved.popupSize === 14) saved.popupSize = 18; // old "Large text" checkbox
   applyTheme(saved);
+  lang = I18N.LANGS.some(([c]) => c === saved.lang) ? saved.lang : "en";
+  I18N.apply(document, lang);
 
   [activeTabInfo] = await queryActiveTab();
-  const title = (activeTabInfo && activeTabInfo.title) || "Unavailable";
+  const title = (activeTabInfo && activeTabInfo.title) || tx("unavailable");
   $("page-title").textContent = title;
   $("r-title").textContent = title;
-  let host = "Unavailable";
+  let host = tx("unavailable");
   try { host = new URL(activeTabInfo.url).hostname || host; } catch (_) {}
   $("r-host").textContent = host;
   await detectSiteColor();
@@ -675,11 +812,13 @@ function initSettings() {
 
   initBionic();
   initRead();
+  initPageWords();
   initWords();
   initTranslate();
   initNotes();
   initSettings();
   showSection($("t-" + saved.activeTab) ? saved.activeTab : "home");
+  if (!saved.lang) showWelcome();
 
   await syncAutoWithPermission();
   refreshStatus();

@@ -85,3 +85,45 @@ test("presets, font stacks and contrast color", () => {
     assert.equal(core.segments(t, p).map((s) => s.text).join(""), t);
   }
 });
+
+test("collectWords returns every word in order, any script, duplicates kept", () => {
+  assert.deepEqual(core.collectWords("The cat, the DOG. Don't stop!"), ["The", "cat", "the", "DOG", "Don't", "stop"]);
+  assert.deepEqual(core.collectWords("naïve café 漢字 привет"), ["naïve", "café", "漢字", "привет"]);
+  assert.deepEqual(core.collectWords("mp3 2024 ---"), ["mp"]);
+  assert.deepEqual(core.collectWords(""), []);
+  assert.deepEqual(core.collectWords(null), []);
+});
+
+test("applyTiers turns backend marks into bold flags, scaled by the bold amount", () => {
+  const text = "The researchers agreed.";
+  const marks = [[4, 15, 2, 4], [16, 22, 1, 2]]; // researchers: bold 4 letters; agreed: bold 2
+  const at = (pct) => core.segmentsFromFlags(text, core.applyTiers(text, marks, pct), 0)
+    .filter((s) => s.tier).map((s) => s.text);
+  assert.deepEqual(at(40), ["rese", "ag"]);      // 40 = exactly what the backend chose
+  assert.deepEqual(at(20), ["re", "a"]);         // half
+  assert.deepEqual(at(80), ["research", "agre"]); // double (4 -> 8 letters), never beyond the word
+  assert.equal(core.segmentsFromFlags(text, core.applyTiers(text, marks, 40), 0).map((s) => s.text).join(""), text);
+});
+
+test("applyTiers ignores bad marks and keeps accents with their letter", () => {
+  const text = "café ok";
+  assert.deepEqual([...core.applyTiers(text, [[0, 99, 2, 2], [3, 1, 2, 1], "x", [0, 4, 0, 2], [5, 7, 3, 1], null], 40)].every((v) => v === 0), true);
+  const combining = "cafe\u0301"; // e + combining accent
+  const f = core.applyTiers(combining, [[0, 5, 2, 4]], 40);
+  assert.equal(f[3] && f[4], 2); // asking for 4 letters also takes the combining accent that belongs to the 4th
+  assert.deepEqual([...core.applyTiers("", [[0, 1, 1, 1]], 40)], []);
+  assert.deepEqual([...core.applyTiers("abc", null, 40)], [0, 0, 0]);
+});
+
+test("segmentsFromFlags works on a piece of a longer text", () => {
+  const flags = Uint8Array.from([0, 1, 1, 0, 2]);
+  assert.deepEqual(core.segmentsFromFlags("bc", flags, 1), [{ text: "bc", tier: 1 }]);
+  assert.deepEqual(core.segmentsFromFlags("cde", flags, 2), [{ text: "c", tier: 1 }, { text: "d", tier: 0 }, { text: "e", tier: 2 }]);
+});
+
+test("page chrome is skipped and icon fonts are recognised", () => {
+  for (const sel of ["nav", "button", "aside", "footer", '[role="menu"]']) assert.ok(core.SKIP_SELECTOR.includes(sel));
+  assert.ok(core.ICON_FONT_RE.test('"Material Icons"'));
+  assert.ok(core.ICON_FONT_RE.test("FontAwesome, sans-serif"));
+  assert.ok(!core.ICON_FONT_RE.test("Georgia, serif"));
+});

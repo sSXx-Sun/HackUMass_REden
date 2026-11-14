@@ -4,13 +4,14 @@ Bionic reading for the web: REden bolds the beginning of each word on the page y
 ("**Rea**ding" → "**Rea**d**ing**") so text is easier to scan. Manifest V3; Chrome, Edge, Brave and
 Firefox 128+.
 
-Bionic reading runs entirely in the browser and **works without the Python backend**. The backend
-is only used by the sentence analysis and word lookup features.
+Bionic reading needs the **Python backend**: REden sends the article text to it (on your own computer by default) and bolds the words it answers with.
+**If the backend is not running, REden does nothing to the page.** Start it with `python app.py` in `backend/` (see `../backend/readme.md`).
 
 ## Structure
 - `manifest.json` – extension config and permissions
 - `shared/core.js` – word splitting + page support check (used by popup and page script; unit tested)
-- `content/bionic.js` – content script that formats the real page and restores it
+- `content/bionic.js` – content script: extracts the article, asks the backend, bolds the answer, restores on off
+- `background/background.js` – the only code that calls the backend (page scripts can't)
 - `popup/` – popup UI (`popup.html`, `popup.css`, `popup.js`): Home, Read, Words, Notes, Stats, Settings
 - `icons/` – toolbar icons
 - `tests/core.test.js` – unit tests
@@ -29,6 +30,10 @@ After changing code, click the extension's reload button and reopen the popup.
    page update as you change them. Font size and line spacing apply only while Bionic reading is on.
 4. Turn on **Automatic on every website** to format pages as soon as they load (see Permissions).
 
+**Page words:** on Read, press "Collect words from this page". Every word on the page is printed to the page's console (F12 > Console) and sent to the local backend (`POST /page`; read it back with `GET /page`). Nothing is sent until you press the button.
+
+**Language:** the first time you open the popup it asks which language you prefer (English, Español, Français, Português, 简体中文, العربية, हिन्दी). Change it any time in Settings > Language.
+
 **Translate:** on the Words tab, choose a language, type English text (or select text on the page and leave the box empty) and press Translate. It uses the browser's on-device translator (Chrome or Edge 138+); the first use downloads a small language pack.
 
 Settings (including theme, notes and saved words) are saved in browser storage and survive closing the popup
@@ -43,8 +48,8 @@ and restarting the browser.
 | `host_permissions`: `127.0.0.1:5050`, `localhost:5050` | Talk to the optional local Python backend. |
 | `optional_host_permissions`: `http://*/*`, `https://*/*` | **Only requested when you turn on "Automatic on every website".** It lets the browser run the script on pages as they load. Turning Automatic off removes it again. |
 
-Nothing the page says is sent anywhere; formatting happens locally. The extension has no background
-script and no remote code.
+Article text is sent only to the backend address in Settings (`http://127.0.0.1:5050`, your own computer, by default), never anywhere else.
+The background worker exists only to make those calls. There is no remote code.
 
 ## How the formatting is applied
 - Individual text nodes are replaced by a small `<span>` holding the bold and normal pieces; the original
@@ -72,8 +77,7 @@ node --test extension/tests
 6. **Dynamic content:** on a page that loads more content (a feed or infinite scroll), new text is formatted once, with no
    doubled bolding.
 7. **Unsupported pages:** open `chrome://extensions` or the Chrome Web Store → popup explains the page can't be changed.
-8. **Backend down:** with the backend stopped, Bionic reading still works; Read → Analyze selection and Words lookup
-   show "Backend offline" and nothing else breaks.
+8. **Backend down:** with the backend stopped, turning Bionic reading on formats nothing and the popup says the backend isn't reachable; start it, reopen the popup and the page is formatted.
 9. **Keyboard:** Tab to the section icons and use ←/→ to switch; Space toggles switches; focus rings are visible.
 10. **Theme:** Settings → Dark mode / Large text change the popup and persist.
 

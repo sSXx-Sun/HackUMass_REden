@@ -33,14 +33,23 @@
     return lum < 0.5 ? "#000" : "#fff";
   }
 
-  // Elements whose text must never be touched (code, form fields, editable areas, our own output).
+  // Elements whose text must never be touched: code, form fields, editable areas, our own output,
+  // and page "chrome" (menus, buttons, toolbars, sidebars, footers). Only article text is formatted.
   const SKIP_SELECTOR = [
     "script", "style", "noscript", "template", "iframe", "svg", "math",
     "code", "pre", "kbd", "samp", "textarea", "input", "select", "option",
+    "nav", "aside", "footer", "button", "label",
     '[contenteditable]:not([contenteditable="false"])',
-    '[role="textbox"]',
-    ".readen-w",
+    '[role="textbox"]', '[role="button"]', '[role="navigation"]', '[role="banner"]', '[role="menu"]',
+    '[role="menubar"]', '[role="menuitem"]', '[role="toolbar"]', '[role="tab"]', '[role="tablist"]',
+    '[role="contentinfo"]', '[role="complementary"]', '[role="search"]', '[aria-hidden="true"]',
+    ".reden-w",
   ].join(",");
+
+  // If the page has an article/main region, only text inside it is formatted.
+  const SCOPE_SELECTOR = 'article, main, [role="main"]';
+  // Icon fonts draw symbols from text ("star", "menu"); never touch those.
+  const ICON_FONT_RE = /icon|symbol|glyph|awesome|material|dingbat|webdings/i;
 
   // Only scripts where "bold the first letters" makes sense. CJK, Thai, Arabic etc. are left alone.
   const L = "\\p{Script=Latin}\\p{Script=Cyrillic}\\p{Script=Greek}";
@@ -86,6 +95,48 @@
     return out;
   }
 
+  // The backend answers with [start, end, rating, boldLen] per word to emphasise. Turn that into one
+  // number per UTF-16 unit of `text`: 0 = plain, 1 or 2 = bold (the word's rating).
+  // `pct` scales the backend's bold length: 40 = as the backend chose, 20 = half, 80 = double.
+  function applyTiers(text, marks, pct) {
+    const flags = new Uint8Array(text.length);
+    if (!Array.isArray(marks)) return flags;
+    const scale = clampPct(pct) / 40;
+    for (const m of marks) {
+      if (!Array.isArray(m)) continue;
+      const [s, e, rating, len] = m;
+      if (!Number.isInteger(s) || !Number.isInteger(e) || s < 0 || e <= s || e > text.length) continue;
+      if (rating !== 1 && rating !== 2) continue;
+      const chars = Array.from(text.slice(s, e));
+      if (!LETTER_RE.test(chars[0])) continue;
+      const base = Number.isInteger(len) && len > 0 ? len : boldCount(chars, 40);
+      let n = Math.min(chars.length, Math.max(1, Math.round(base * scale)));
+      while (n < chars.length && MARK_RE.test(chars[n])) n++;
+      flags.fill(rating, s, s + chars.slice(0, n).join("").length);
+    }
+    return flags;
+  }
+
+  // Split `text` (which starts at `offset` inside the flags array) into runs of equal flag: [{text, tier}].
+  function segmentsFromFlags(text, flags, offset) {
+    const out = [];
+    let i = 0;
+    while (i < text.length) {
+      const tier = flags[offset + i] | 0;
+      let j = i + 1;
+      while (j < text.length && (flags[offset + j] | 0) === tier) j++;
+      out.push({ text: text.slice(i, j), tier });
+      i = j;
+    }
+    return out;
+  }
+
+  // Every word in a text, in reading order (any script, duplicates kept). Used by "Page words".
+  const ANY_WORD_RE = /\p{L}[\p{L}\p{M}]*(?:['’]\p{L}[\p{L}\p{M}]*)*/gu;
+  function collectWords(text) {
+    return typeof text === "string" ? text.match(ANY_WORD_RE) || [] : [];
+  }
+
   // Can an extension change this page? Returns {ok:true} or {ok:false, reason}.
   function checkUrl(url) {
     let u;
@@ -107,7 +158,7 @@
     return { ok: true };
   }
 
-  const api = { DEFAULTS, PRESETS, FONT_STACKS, contrastColor, SKIP_SELECTOR, WORD_RE, LETTER_RE, clampPct, boldCount, splitWord, segments, checkUrl };
-  root.ReaDeNCore = api;
+  const api = { DEFAULTS, PRESETS, FONT_STACKS, contrastColor, SKIP_SELECTOR, SCOPE_SELECTOR, ICON_FONT_RE, applyTiers, segmentsFromFlags, WORD_RE, LETTER_RE, clampPct, boldCount, splitWord, segments, collectWords, checkUrl };
+  root.REdenCore = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);
