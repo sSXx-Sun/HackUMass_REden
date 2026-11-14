@@ -12,8 +12,8 @@ SAMPLE = [w for w in top_n_list("en", 3000) if w.isascii() and w.isalpha() and l
 class TestWord(unittest.TestCase):
     def test_examples(self):
         self.assertEqual(word("reading"), [0, 1, 2, 3])  # read|ing
-        self.assertEqual(word("unhappy"), [0, 1])  # un|happy
-        self.assertEqual(word("running"), [0, 1, 2])  # run|ning
+        self.assertEqual(word("children"), [0, 1, 2, 3, 4])  # child|ren
+        self.assertEqual(word("quickly"), [0, 1, 2, 3, 4])  # quick|ly
         self.assertEqual(word("information"), [0, 1, 2, 3, 4, 5])  # inform|ation
 
     def test_short_and_unknown(self):
@@ -27,7 +27,16 @@ class TestWord(unittest.TestCase):
         for w in SAMPLE:
             idx = word(w)
             self.assertEqual(idx, list(range(len(idx))), w)
-            self.assertTrue(math.ceil(len(w) * 0.25) <= len(idx) <= math.floor(len(w) * 0.65), w)
+            self.assertTrue(math.ceil(len(w) * 0.45) <= len(idx) <= math.floor(len(w) * 0.75), w)
+
+    def test_most_words_between_50_and_70_percent(self):
+        ratios = [len(word(w)) / len(w) for w in SAMPLE]
+        self.assertTrue(0.55 <= sum(ratios) / len(ratios) <= 0.65)
+        self.assertGreaterEqual(sum(0.5 <= r <= 0.7 for r in ratios) / len(ratios), 0.8)
+
+    def test_three_letter_words_do_not_crash(self):
+        for w in ("the", "and", "are", "you"):
+            self.assertTrue(1 <= len(word(w)) <= 2, w)
 
     def test_case_insensitive_and_deterministic(self):
         self.assertEqual(word("Reading"), word("reading"))
