@@ -4,7 +4,7 @@ const core = globalThis.ReaDeNCore; // from ../shared/core.js
 
 const DEFAULTS = {
   activeTab: "home",
-  dark: false, large: false, popupSize: 14, trLang: "es", words: [], notes: "",
+  dark: false, large: false, popupSize: 14, tintSite: true, trLang: "es", words: [], notes: "",
   backendUrl: "http://127.0.0.1:5050",
   pageDark: false,
   ...core.DEFAULTS,
@@ -69,10 +69,95 @@ document.querySelectorAll("[data-goto]").forEach((el) =>
   })
 );
 
+// ---------- site color ----------
+// The popup takes a faint tint of the current website's own color (green site -> greenish popup).
+// Tint amounts match the original purple design: paper 2%, selected 8%, rules 13% of the site color.
+let siteColor = null; // [r,g,b] or null
+const mix = (a, b, t) => a.map((v, i) => Math.round(v * (1 - t) + b[i] * t));
+const lum = (c) => {
+  const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+  return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+};
+const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+const css = (c) => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+const sat = (c) => { const mx = Math.max(...c), mn = Math.min(...c); return mx === 0 ? 0 : (mx - mn) / mx; };
+// Move `c` toward `target` in small steps until it has enough contrast against `bg`.
+function ensureContrast(c, bg, target, min) {
+  let out = c;
+  for (let i = 0; i < 12 && contrast(out, bg) < min; i++) out = mix(out, target, 0.12);
+  return out;
+}
+function siteTokens(site, dark) {
+  const W = [255, 255, 255], K = [0, 0, 0];
+  if (!dark) {
+    const paper = mix(W, site, 0.02);
+    const ink = ensureContrast(mix(K, site, 0.45), paper, K, 9);
+    const blue = ensureContrast(site, paper, K, 5);
+    return {
+      "--paper": css(paper), "--field": "#FFFFFF", "--rule": css(mix(W, site, 0.13)), "--lav": css(mix(W, site, 0.08)),
+      "--ink": css(ink), "--muted": css(ensureContrast(mix(ink, paper, 0.3), paper, K, 4.6)),
+      "--blue": css(blue), "--on-blue": contrast(W, blue) >= contrast(K, blue) ? "#FFFFFF" : "#000000",
+    };
+  }
+  const base = [20, 20, 24];
+  const paper = mix(base, site, 0.1);
+  const ink = mix(W, site, 0.1);
+  const blue = ensureContrast(site, paper, W, 5);
+  return {
+    "--paper": css(paper), "--field": css(mix([12, 12, 16], site, 0.07)), "--rule": css(mix(base, site, 0.22)),
+    "--lav": css(mix(base, site, 0.25)), "--ink": css(ink),
+    "--muted": css(ensureContrast(mix(ink, paper, 0.3), paper, W, 4.6)),
+    "--blue": css(blue), "--on-blue": contrast(W, blue) >= contrast(K, blue) ? "#FFFFFF" : "#000000",
+  };
+}
+function applyTint() {
+  const names = ["--paper", "--field", "--rule", "--lav", "--ink", "--muted", "--blue", "--on-blue"];
+  const tokens = saved.tintSite && siteColor ? siteTokens(siteColor, !!saved.dark) : null;
+  for (const n of names) {
+    if (tokens) document.body.style.setProperty(n, tokens[n]);
+    else document.body.style.removeProperty(n);
+  }
+}
+function parseColor(str) {
+  const probe = document.createElement("span");
+  probe.style.color = "";
+  probe.style.color = str;
+  if (!probe.style.color) return null;
+  document.body.append(probe);
+  const m = /rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+))?/.exec(getComputedStyle(probe).color);
+  probe.remove();
+  if (!m || (m[4] !== undefined && Number(m[4]) < 0.5)) return null;
+  return [Number(m[1]), Number(m[2]), Number(m[3])];
+}
+// Runs inside the page: returns candidate colors, best first.
+function pageColorCandidates() {
+  const out = [];
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta && meta.content) out.push(meta.content);
+  const bgOf = (el) => (el ? getComputedStyle(el).backgroundColor : "");
+  for (const sel of ["header", "nav", '[role="banner"]', "body", "html"]) out.push(bgOf(document.querySelector(sel)));
+  const a = document.querySelector("a[href]");
+  if (a) out.push(getComputedStyle(a).color);
+  return out;
+}
+async function detectSiteColor() {
+  siteColor = null;
+  if (!activeTabInfo || !core.checkUrl(activeTabInfo.url).ok) return;
+  try {
+    const res = await call(() => api.scripting.executeScript({ target: { tabId: activeTabInfo.id }, func: pageColorCandidates }));
+    const list = (res && res[0] && res[0].result) || [];
+    for (const raw of Array.isArray(list) ? list : []) {
+      const c = parseColor(raw);
+      if (c && sat(c) >= 0.2) { siteColor = c; break; } // grey, white and black sites keep the REden purple
+    }
+  } catch (_) { /* page can't be read: keep the default colors */ }
+}
+
 function applyTheme({ dark, popupSize }) {
   document.body.classList.toggle("dark", !!dark);
   const px = Math.min(22, Math.max(12, Number(popupSize) || 14));
   document.body.style.setProperty("--font-size", px + "px");
+  applyTint();
 }
 
 // ---------- BIONIC READING ----------
@@ -508,6 +593,13 @@ function renderStats() {
 function initSettings() {
   const dark = $("opt-dark");
   const size = $("opt-size");
+  const tint = $("opt-tint");
+  tint.checked = saved.tintSite;
+  tint.addEventListener("change", () => {
+    saved.tintSite = tint.checked;
+    storageSet({ tintSite: tint.checked });
+    applyTint();
+  });
   dark.checked = saved.dark;
   size.value = saved.popupSize;
   $("opt-size-out").textContent = saved.popupSize + " px";
@@ -578,6 +670,8 @@ function initSettings() {
   let host = "Unavailable";
   try { host = new URL(activeTabInfo.url).hostname || host; } catch (_) {}
   $("r-host").textContent = host;
+  await detectSiteColor();
+  applyTheme(saved);
 
   initBionic();
   initRead();

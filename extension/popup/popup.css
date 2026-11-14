@@ -7,6 +7,7 @@
   --paper: #FCFAFE;
   --field: #FFFFFF;
   --ink: #2F2A6B;
+  --brand: #2F2A6B; /* logo and wordmark keep the REden indigo even when the popup takes the site's color */
   --muted: #5E6585;
   --rule: #E6E1F0;
   --blue: #3B3294;
@@ -22,6 +23,7 @@
 }
 
 body.dark {
+  --brand: #ECE9FA;
   --paper: #1E1B3A;
   --field: #15132B;
   --ink: #ECE9FA;
@@ -63,13 +65,13 @@ body {
   width: 47px;
   height: 33px;
   display: block;
-  background: var(--ink);
+  background: var(--brand);
   -webkit-mask: url("../icons/mark.png") center / contain no-repeat;
   mask: url("../icons/mark.png") center / contain no-repeat;
 }
 .mark-wrap { flex: none; display: flex; flex-direction: column; gap: 4px; }
 .bar { display: block; width: 38px; height: 4px; margin-left: 3px; border-radius: 2px; background: var(--orange); }
-.wordmark { margin: 0; font: 800 1.9em/1 var(--sans); letter-spacing: 0.01em; color: var(--ink); }
+.wordmark { margin: 0; font: 800 1.9em/1 var(--sans); letter-spacing: 0.01em; color: var(--brand); }
 .wordmark b { font-weight: 800; }
 .tagline { margin: 3px 0 0; color: var(--muted); font: italic 400 0.78em/1.2 var(--serif); }
 
@@ -320,6 +322,6 @@ textarea { width: 100%; height: 340px; resize: none; font-family: var(--serif); 
 /* The Settings checkboxes drive the popup theme even if scripts fail. */
 body:has(#opt-dark:checked) {
   --paper: #1E1B3A; --field: #15132B; --ink: #ECE9FA; --muted: #A9A9CC; --rule: #3A3763;
-  --blue: #A99CFF; --on-blue: #17143A; --lav: #34305F; --orange: #F0A872;
+  --brand: #ECE9FA; --blue: #A99CFF; --on-blue: #17143A; --lav: #34305F; --orange: #F0A872;
   --ok: #6FD3A0; --warn: #F0B866; --danger: #FF9C94;
 }

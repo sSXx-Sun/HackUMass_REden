@@ -78,6 +78,10 @@ after code changes.
 - Palette (CSS variables on `:root` / `body.dark`): paper barely-purple `#FCFAFE`, ink indigo `#2F2A6B`, controls `#3B3294`, selected tab/choice a slightly darker soft purple `#EFEAF8`,
   orange `#E8975A` (small accent only: underlines, big-switch knob, logo bar), muted `#5E6585`, rule `#E6E1F0`.
   Dark: paper `#1E1B3A`, ink `#ECE9FA`, blue `#A99CFF`, lavender `#34305F`, orange `#F0A872`. Keep `body.dark` and the `:has(#opt-dark:checked)` block in sync.
+- **Site-matched colors** (Settings switch `tintSite`, default on): on open, the popup reads a color from the current page (meta theme-color, then header/nav/body background, then
+  first link color; must be saturated enough, else the REden purple above is used) and tints the popup with it using the same amounts as the purple design:
+  paper 2%, selected 8%, rules 13% of the site color; ink/muted/controls are the site color darkened/lightened until contrast is 9/4.6/5. Dark mode mixes into a neutral dark base.
+  Set inline on `body` by `applyTint()` in `popup.js`; the logo and wordmark use `--brand` so they never change. Only checked with a stubbed page color, not on real sites.
 - Type (popup): serif stack (Fraunces, Newsreader, Charter, Georgia) for wordmark/headings/specimen; rounded sans stack (Nunito Sans, ui-rounded, system-ui) for controls.
   **System/installed fonts only; no font files are bundled.** Bundling Fraunces/Nunito Sans needs a download the user hasn't approved yet.
 - Logo: the user's own logo is the source of truth (R whose right half is an open book, indigo `#494188`, orange underline `#ED925F`, lavender `#EEE7FA`, rounded heavy "REden" wordmark).
