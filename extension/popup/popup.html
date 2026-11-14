@@ -2,242 +2,28 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>REden</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <input type="radio" name="tab" id="t-home" class="tab-radio" aria-label="Home" checked>
-  <input type="radio" name="tab" id="t-read" class="tab-radio" aria-label="Read">
-  <input type="radio" name="tab" id="t-words" class="tab-radio" aria-label="Words">
-  <input type="radio" name="tab" id="t-notes" class="tab-radio" aria-label="Notes">
-  <input type="radio" name="tab" id="t-stats" class="tab-radio" aria-label="Stats">
-  <input type="radio" name="tab" id="t-settings" class="tab-radio" aria-label="Settings">
-
   <header class="masthead">
     <span class="mark-wrap" aria-hidden="true"><span class="mark"></span><span class="bar"></span></span>
-    <div>
-      <h1 class="wordmark" aria-label="REden"><b>RE</b>den</h1>
-      <p class="tagline" data-i18n="tagline">Every language deserves a more accessible reading experience.</p>
-    </div>
+    <h1 class="wordmark" aria-label="REden"><b>RE</b>den</h1>
   </header>
 
-  <nav class="tabs" aria-label="Sections">
-    <label class="tab" for="t-home">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/></svg><span data-i18n="tab_home">Home</span>
+  <main>
+    <label class="switch">
+      <input type="checkbox" role="switch" id="bionic">
+      <span class="track" aria-hidden="true"></span>
+      <span class="switch-text">Bionic reading</span>
     </label>
-    <label class="tab" for="t-read">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6c-2-2-5-2.5-9-2v14c4-.5 7 0 9 2 2-2 5-2.5 9-2V4c-4-.5-7 0-9 2zM12 6v14"/></svg><span data-i18n="tab_read">Read</span>
-    </label>
-    <label class="tab" for="t-words">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4-12 4 12M5.5 16h5M15 9h5M15 13h5M15 17h3"/></svg><span data-i18n="tab_words">Words</span>
-    </label>
-    <label class="tab" for="t-notes">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h10l4 4v14H5zM14 3v5h5M8 13h8M8 17h6"/></svg><span data-i18n="tab_notes">Notes</span>
-    </label>
-    <label class="tab" for="t-stats">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg><span data-i18n="tab_stats">Stats</span>
-    </label>
-    <label class="tab" for="t-settings">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg><span data-i18n="tab_settings">Settings</span>
-    </label>
-  </nav>
+    <p id="status" class="status" role="status" aria-live="polite"></p>
 
-  <main class="content">
-    <!-- HOME -->
-    <section id="home" class="panel" data-i18n-aria="tab_home" aria-label="Home">
-      <p id="specimen" class="specimen"></p>
-
-      <label class="switch big">
-        <input type="checkbox" role="switch" id="bio-home" data-bio-switch>
-        <span class="track" aria-hidden="true"></span>
-        <span class="switch-text" data-i18n="bionic">Bionic reading</span>
-      </label>
-      <p class="bio-status" data-bio-status role="status" aria-live="polite"></p>
-
-      <fieldset class="seg">
-        <legend data-i18n="bold_intensity">Bold intensity</legend>
-        <input type="radio" name="preset" id="pr-low" value="25"><label for="pr-low" data-i18n="low">Low</label>
-        <input type="radio" name="preset" id="pr-medium" value="40"><label for="pr-medium" data-i18n="medium">Medium</label>
-        <input type="radio" name="preset" id="pr-high" value="55"><label for="pr-high" data-i18n="high">High</label>
-      </fieldset>
-      <p class="help seg-help" data-i18n="intensity_help">Starting points, not proven best for everyone. Fine-tune on Read.</p>
-
-      <fieldset class="seg">
-        <legend data-i18n="text_style">Page text style</legend>
-        <input type="radio" name="mode" id="md-original" value="original"><label for="md-original" data-i18n="original">Original</label>
-        <input type="radio" name="mode" id="md-rounded" value="rounded"><label for="md-rounded" data-i18n="rounded">Rounded</label>
-        <input type="radio" name="mode" id="md-editorial" value="editorial"><label for="md-editorial" data-i18n="editorial">Editorial</label>
-      </fieldset>
-      <p class="help seg-help" data-i18n="style_help">Original keeps the site's own font. Rounded and Editorial change only the text REden formats.</p>
-
-      <p class="page-ref" id="page-title">Loading…</p>
-
-      <ul class="nav-list">
-        <li><button type="button" class="nav-row" data-goto="read"><b data-i18n="tab_read">Read</b><span data-i18n="nav_read">Set how much of each word is bold</span></button></li>
-        <li><button type="button" class="nav-row" data-goto="words"><b data-i18n="tab_words">Words</b><span data-i18n="nav_words">Save words, look them up, translate</span></button></li>
-        <li><button type="button" class="nav-row" data-goto="notes"><b data-i18n="tab_notes">Notes</b><span data-i18n="nav_notes">Write down what you learn</span></button></li>
-        <li><button type="button" class="nav-row" data-goto="stats"><b data-i18n="tab_stats">Stats</b><span data-i18n="nav_stats">See your saved words and notes</span></button></li>
-      </ul>
-    </section>
-
-    <!-- READ -->
-    <section id="read" class="panel" data-i18n-aria="tab_read" aria-label="Read">
-      <h2 data-i18n="bionic">Bionic reading</h2>
-      <label class="switch">
-        <input type="checkbox" role="switch" id="bio-read" data-bio-switch>
-        <span class="track" aria-hidden="true"></span>
-        <span class="switch-text" data-i18n="bionic">Bionic reading</span>
-      </label>
-      <p class="bio-status" data-bio-status role="status" aria-live="polite"></p>
-
-      <p id="preview" class="preview" data-i18n-aria="preview_aria" aria-label="Live preview of your settings"></p>
-
-      <div class="field">
-        <label for="bio-strength"><span data-i18n="bold_amount">Bold amount</span> <output id="bio-strength-out" for="bio-strength">50%</output></label>
-        <input type="range" id="bio-strength" min="20" max="80" step="5">
-      </div>
-      <div class="field">
-        <label for="bio-size"><span data-i18n="font_size">Font size</span> <output id="bio-size-out" for="bio-size">100%</output></label>
-        <input type="range" id="bio-size" min="100" max="200" step="10">
-      </div>
-      <div class="field">
-        <label for="bio-spacing" data-i18n="line_spacing">Line spacing</label>
-        <select id="bio-spacing">
-          <option value="0" data-i18n="sp_default">Page default</option>
-          <option value="1.5" data-i18n="sp_comfortable">Comfortable</option>
-          <option value="1.8" data-i18n="sp_relaxed">Relaxed</option>
-          <option value="2.1" data-i18n="sp_spacious">Spacious</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label for="bio-letter" data-i18n="letter_spacing">Letter spacing</label>
-        <select id="bio-letter">
-          <option value="0" data-i18n="sp_default">Page default</option>
-          <option value="0.02" data-i18n="ls_slight">Slightly wider</option>
-          <option value="0.04" data-i18n="ls_wide">Wide</option>
-          <option value="0.08" data-i18n="ls_extra">Extra wide</option>
-        </select>
-      </div>
-      <label class="switch">
-        <input type="checkbox" role="switch" id="bio-contrast">
-        <span class="track" aria-hidden="true"></span>
-        <span class="switch-text" data-i18n="contrast">High contrast text</span>
-      </label>
-      <p class="help" data-i18n="contrast_help">Pushes formatted text toward black or white, whichever is closer to the page's own text color.</p>
-
-      <label class="switch">
-        <input type="checkbox" role="switch" id="bio-auto" aria-describedby="auto-help">
-        <span class="track" aria-hidden="true"></span>
-        <span class="switch-text" data-i18n="auto">Format every website automatically</span>
-      </label>
-      <p id="auto-help" class="help" data-i18n="auto_help">Formats pages as soon as they load.</p>
-      <p id="auto-msg" class="message" role="status" aria-live="polite" hidden></p>
-
-      <h2 class="gap" data-i18n="h_pw">Page words</h2>
-      <p class="help" data-i18n="pw_help">Collect every word on this page.</p>
-      <button type="button" id="pw-go" class="btn" data-i18n="pw_btn">Collect words from this page</button>
-      <p id="pw-status" class="message" role="status" aria-live="polite" hidden></p>
-      <p id="pw-preview" class="translation" dir="auto"></p>
-
-      <h2 class="gap" data-i18n="h_sentence">Sentence analysis</h2>
-      <p class="help" data-i18n="sentence_help">Split the text you selected on the page into sentences. This needs the Python backend.</p>
-      <div class="kv"><span data-i18n="page">Page</span><b id="r-title">…</b></div>
-      <div class="kv"><span data-i18n="site">Site</span><b id="r-host">…</b></div>
-      <button type="button" id="analyze" class="btn" data-i18n="split_btn">Split selection into sentences</button>
-      <p id="r-status" class="message" role="status" aria-live="polite" hidden></p>
-      <ol id="r-sentences" class="sentences"></ol>
-    </section>
-
-    <!-- WORDS -->
-    <section id="words" class="panel" data-i18n-aria="tab_words" aria-label="Words">
-      <h2 data-i18n="tab_words">Words</h2>
-      <form id="word-form" class="inline-form">
-        <label class="sr-only" for="word-input" data-i18n="word_label">Word to save</label>
-        <input id="word-input" type="text" data-i18n-ph="word_ph" placeholder="Type a word to save" autocomplete="off">
-        <button type="submit" class="btn" data-i18n="save">Save</button>
-      </form>
-      <div id="word-info" class="info" hidden role="status" aria-live="polite"></div>
-      <ul id="word-list" class="word-list"></ul>
-      <p id="word-empty" class="message" data-i18n="word_empty">You haven't saved any words yet. Select a saved word to look it up.</p>
-
-      <h2 class="gap" data-i18n="h_translate">Translate</h2>
-      <p class="help" data-i18n="tr_help">Translate English text into your own language. Translation runs on your device in Chrome or Edge 138 and newer, so nothing you read is sent anywhere.</p>
-      <div class="field">
-        <label for="tr-lang" data-i18n="tr_into">Translate into</label>
-        <select id="tr-lang"></select>
-      </div>
-      <div class="example">
-        <p id="tr-ex-en"></p>
-        <p id="tr-ex-to" dir="auto"></p>
-        <p class="help" data-i18n="tr_sample_help">Sample sentence. It shows what a translation looks like before you try your own.</p>
-      </div>
-      <label class="sr-only" for="tr-input" data-i18n="tr_label">English text to translate</label>
-      <textarea id="tr-input" data-i18n-ph="tr_ph" placeholder="Type or paste English text. Leave this empty to translate the text you selected on the page."></textarea>
-      <button type="button" id="tr-go" class="btn" data-i18n="h_translate">Translate</button>
-      <p id="tr-status" class="message" role="status" aria-live="polite" hidden></p>
-      <p id="tr-out" class="translation" dir="auto"></p>
-    </section>
-
-    <!-- NOTES -->
-    <section id="notes" class="panel" data-i18n-aria="tab_notes" aria-label="Notes">
-      <h2 data-i18n="tab_notes">Notes</h2>
-      <label class="sr-only" for="note-text" data-i18n="notes_label">Your notes</label>
-      <textarea id="note-text" data-i18n-ph="notes_ph" placeholder="Start typing. Your notes save as you write."></textarea>
-    </section>
-
-    <!-- STATS -->
-    <section id="stats" class="panel" data-i18n-aria="tab_stats" aria-label="Stats">
-      <h2 data-i18n="tab_stats">Stats</h2>
-      <dl class="ledger">
-        <div class="kv"><dt data-i18n="stat_words">Saved words</dt><dd id="stat-words">0</dd></div>
-        <div class="kv"><dt data-i18n="stat_chars">Note characters</dt><dd id="stat-chars">0</dd></div>
-        <div class="kv"><dt data-i18n="stat_lines">Note lines</dt><dd id="stat-lines">0</dd></div>
-        <div class="kv"><dt data-i18n="stat_longest">Longest saved word</dt><dd id="stat-longest">–</dd></div>
-      </dl>
-    </section>
-
-    <!-- SETTINGS -->
-    <section id="settings" class="panel" data-i18n-aria="tab_settings" aria-label="Settings">
-      <h2 data-i18n="h_popup">Popup</h2>
-      <div class="field">
-        <label for="opt-lang" data-i18n="language">Language</label>
-        <select id="opt-lang"></select>
-      </div>
-      <label class="row"><span data-i18n="dark">Dark mode</span><input type="checkbox" id="opt-dark"></label>
-      <label class="row"><span data-i18n="match">Match colors to the website</span><input type="checkbox" id="opt-tint"></label>
-      <div class="field">
-        <label for="opt-size"><span data-i18n="text_size">Text size</span> <output id="opt-size-out" for="opt-size">14 px</output></label>
-        <input type="range" id="opt-size" min="12" max="22" step="1">
-      </div>
-
-      <h2 class="gap" data-i18n="h_page">Current web page</h2>
-      <label class="row"><span data-i18n="dark_page">Dark page</span><input type="checkbox" id="pg-dark"></label>
-      <p id="pg-msg" class="message" role="status" aria-live="polite" hidden></p>
-
-      <h2 class="gap" data-i18n="h_backend">Backend</h2>
-      <form id="be-form" class="inline-form">
-        <label class="sr-only" for="be-url" data-i18n="be_label">Backend address</label>
-        <input id="be-url" type="text" autocomplete="off" spellcheck="false">
-        <button type="submit" class="btn" data-i18n="test">Test</button>
-      </form>
-      <p id="be-msg" class="message" role="status" aria-live="polite" hidden></p>
-
-      <h2 class="gap" data-i18n="h_data">Saved data</h2>
-      <button type="button" id="clear-data" class="btn danger" data-i18n="clear_btn">Clear words and notes</button>
-      <p id="clear-msg" class="message" role="status" aria-live="polite" hidden>Words and notes cleared.</p>
-    </section>
+    <p class="legend"><b class="k2">Ke</b><span class="f">y</span> <b class="k1">wor</b><span class="f">ds</span> <b class="k0">ar</b><span class="f">e</span> bolder. The rest of each word is a little lighter.</p>
+    <p id="page" class="page"></p>
   </main>
 
-  <div id="welcome" class="welcome" role="dialog" aria-modal="true" aria-labelledby="welcome-title" hidden>
-    <h2 id="welcome-title"></h2>
-    <p id="welcome-sub" class="help"></p>
-    <div id="welcome-list" class="lang-grid"></div>
-  </div>
-
   <script src="../shared/core.js"></script>
-  <script src="i18n.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

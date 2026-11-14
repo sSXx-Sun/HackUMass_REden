@@ -1,13 +1,20 @@
 // REden content script.
-// It extracts the article text of the page, sends it (through the background worker) to the backend,
-// and bolds exactly the words the backend answers with. If the backend can't be reached, REden does
-// nothing: no formatting, no zoom, no spacing.
-// It never replaces page HTML wholesale: it swaps single text nodes for a small <span> and puts the
-// original text node back when turned off.
+//
+// Flow for every paragraph of the article:
+//   1. split the paragraph into sentences, and each sentence into words
+//   2. POST /get_sentence_highlight {items, punctuation}  (once per sentence)  -> rating 0..2 per word
+//   3. POST /get_word_highlight {word}                    (once per distinct word) -> letters to bold
+//   4. draw: the word's bold letters get a weight by sentence rating (0 light, 1 medium, 2 heavy);
+//      the rest of the word's letters are faded a little. Only font-weight and opacity are changed.
+// Requests go through the background worker (pages can't call http://127.0.0.1 themselves).
+// If the backend can't be reached, REden does nothing and puts the page back.
+//
+// It never replaces page HTML wholesale: it swaps single text nodes for a <span class="reden-w"> and puts
+// the original text node back when turned off.
 (function () {
   "use strict";
-  if (globalThis.__redenBionicLoaded) return; // injected twice? do nothing the second time
-  globalThis.__redenBionicLoaded = true;
+  if (globalThis.__redenLoaded) return; // injected twice? do nothing the second time
+  globalThis.__redenLoaded = true;
 
   const api = globalThis.browser ?? globalThis.chrome;
   const core = globalThis.REdenCore;
@@ -15,34 +22,26 @@
 
   const SKIP = core.SKIP_SELECTOR;
   const SCOPE = core.SCOPE_SELECTOR;
-  const SLICE_MS = 12;        // max time spent per rendering batch, so long pages never freeze
-  const BATCH_BLOCKS = 40;    // paragraphs per backend request
-  const BATCH_CHARS = 30000;  // characters per backend request
-  const MIN_WORDS = 3;        // shorter blocks (menus, labels, buttons) are not article text
+  const MIN_WORDS = 3;        // shorter blocks (menus, labels) are not article text
+  const BLOCK_WORKERS = 3;    // paragraphs analysed at the same time
+  const MAX_INFLIGHT = 6;     // backend requests open at the same time
+  // Look: tweak these two.
+  const WEIGHT = { 1: "500", 2: "650", 3: "800" }; // bold letters of rating 0 / 1 / 2 words (flag = rating + 1)
+  const FADE_OPACITY = "0.75";                       // the letters that aren't bolded (1 = not faded)
 
-  const originals = new WeakMap(); // wrapper span -> the original text node
-  let settings = { ...core.DEFAULTS };
-  // off: not formatting | checking: asking the backend if it is there | on: formatting | offline: backend unreachable
-  let phase = "off";
-  let gen = 0;                 // bumped on every stop/start; answers from older generations are ignored
-  let appliedStrength = null;
+  const originals = new WeakMap(); // our span -> the original text node
+  const wordCache = new Map();     // lower-case word -> Promise of its bold indexes (each word asked once)
+  let phase = "off";               // off | checking | on | offline
+  let gen = 0;                     // bumped on every start/stop; late answers from an older gen are ignored
   let observer = null;
-  let queue = [];              // block elements waiting to be sent
+  let queue = [];
   let queued = new WeakSet();
-  let sending = false;
-  let rendered = [];           // {nodes, pieces, text, marks}: kept so a bold-amount change needs no new request
-  let wordCount = 0;
-  let savedZoom = null;
-  let reconcileTimer = null;
-  let restoring = false;
-  let restoreList = [];
-  let ri = 0;
-  const afterRestore = new Set();
-  let scopeCache = { t: -1e9, v: false };
-  const fontCache = new WeakMap();
-  const contrastCache = new WeakMap();
+  let workers = 0;
+  let inflight = 0;
+  let waiting = [];
+  let boldCount = 0;
 
-  // ---------- talking to the background worker ----------
+  // ---------- talking to the backend (through background.js) ----------
   function send(msg) {
     return new Promise((resolve) => {
       try { Promise.resolve(api.runtime.sendMessage(msg)).then(resolve, () => resolve(null)); }
@@ -50,31 +49,64 @@
     });
   }
 
-  // ---------- finding the article ----------
-  function hasScope() {
-    const now = performance.now();
-    if (now - scopeCache.t > 500) scopeCache = { t: now, v: !!document.querySelector(SCOPE) };
-    return scopeCache.v;
+  // send(), at most MAX_INFLIGHT at a time. Requests still waiting when REden turns off are dropped.
+  async function ask(msg) {
+    const myGen = gen;
+    while (inflight >= MAX_INFLIGHT) {
+      await new Promise((r) => waiting.push(r));
+      if (myGen !== gen) return null;
+    }
+    if (myGen !== gen) return null;
+    inflight++;
+    try { return await send(msg); }
+    finally {
+      inflight--;
+      const next = waiting.shift();
+      if (next) next();
+    }
   }
 
-  function isIconFont(el) {
-    if (!fontCache.has(el)) fontCache.set(el, core.ICON_FONT_RE.test(getComputedStyle(el).fontFamily));
-    return fontCache.get(el);
+  function wordIndexes(word) {
+    const key = word.toLowerCase();
+    if (!wordCache.has(key)) {
+      wordCache.set(key, ask({ type: "reden:word", word }).then((r) => {
+        if (!r || !r.ok) { wordCache.delete(key); throw new Error("word request failed"); }
+        return r.data;
+      }));
+    }
+    return wordCache.get(key);
   }
 
-  // Is this text node part of the article (not a menu, button, icon, code, our own output)?
+  // paragraph -> sentences -> words -> sentence backend -> word backend. Throws if the backend fails.
+  async function analyze(text) {
+    const words = [];
+    await Promise.all(core.sentencesOf(text).map(async (s) => {
+      const { items, spans, punctuation } = core.wordsOf(text, s.start, s.end);
+      if (!items.length) return;
+      const r = await ask({ type: "reden:sentence", items, punctuation });
+      if (!r || !r.ok) throw new Error("sentence request failed");
+      await Promise.all(items.map(async (w, i) => {
+        const rec = { start: spans[i][0], end: spans[i][1], rating: r.data[i], idx: null };
+        words.push(rec);
+        rec.idx = await wordIndexes(w);
+      }));
+    }));
+    return words;
+  }
+
+  // ---------- finding the article's paragraphs ----------
+  const isInline = (el) => { const d = getComputedStyle(el).display; return d === "inline" || d === "contents"; };
+
   function usable(node) {
     const p = node.parentElement;
     if (!p || p.closest(SKIP)) return false;
     const header = p.closest("header");
     if (header && !header.closest(SCOPE)) return false; // page header no, article header (title) yes
-    if (hasScope() && !p.closest(SCOPE)) return false;
-    return !isIconFont(p);
+    if (document.querySelector(SCOPE) && !p.closest(SCOPE)) return false;
+    return !core.ICON_FONT_RE.test(getComputedStyle(p).fontFamily);
   }
 
-  const isInline = (el) => { const d = getComputedStyle(el).display; return d === "inline" || d === "contents"; };
-
-  // The block (paragraph, list item, heading, ...) a text node belongs to.
+  // The block (paragraph, list item, heading) a text node belongs to.
   function blockOf(el) {
     while (el && el !== document.body && el !== document.documentElement) {
       if (!isInline(el)) return el;
@@ -83,14 +115,13 @@
     return document.body;
   }
 
-  // All usable text nodes of a block, in order, including spaces and punctuation between links, bold, etc.
+  // The text nodes of one block in order; links/bold inside it stay part of it, nested blocks are their own.
   function nodesOf(block) {
     const out = [];
     const walker = document.createTreeWalker(block, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
       acceptNode(n) {
         if (n.nodeType === Node.ELEMENT_NODE) {
-          if (n.matches(SKIP) || !isInline(n)) return NodeFilter.FILTER_REJECT; // other blocks are handled on their own
-          return NodeFilter.FILTER_SKIP;
+          return n.matches(SKIP) || !isInline(n) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_SKIP;
         }
         return NodeFilter.FILTER_ACCEPT;
       },
@@ -100,15 +131,13 @@
     return out;
   }
 
-  function queueBlock(block) {
+  function enqueueText(node) {
+    if (!core.LETTER_RE.test(node.nodeValue) || !usable(node)) return;
+    const block = blockOf(node.parentElement);
     if (queued.has(block)) return;
     queued.add(block);
     queue.push(block);
     pump();
-  }
-
-  function enqueueText(node) {
-    if (core.LETTER_RE.test(node.nodeValue) && usable(node)) queueBlock(blockOf(node.parentElement));
   }
 
   function enqueueTree(root) {
@@ -124,99 +153,63 @@
     while ((n = walker.nextNode())) enqueueText(n);
   }
 
-  // ---------- sending text, rendering the answer ----------
-  async function pump() {
-    if (sending || phase !== "on") return;
-    sending = true;
-    const myGen = gen;
+  // ---------- processing ----------
+  function pump() {
+    while (phase === "on" && workers < BLOCK_WORKERS && queue.length) {
+      workers++;
+      worker(gen);
+    }
+  }
+
+  async function worker(myGen) {
     try {
       while (phase === "on" && myGen === gen && queue.length) {
-        const batch = [];
-        let chars = 0;
-        while (queue.length && batch.length < BATCH_BLOCKS && chars < BATCH_CHARS) {
-          const block = queue.shift();
-          queued.delete(block);
-          if (!block.isConnected) continue;
-          const nodes = nodesOf(block);
-          const pieces = nodes.map((n) => n.nodeValue);
-          const text = pieces.join("");
-          if (core.collectWords(text).length < MIN_WORDS) continue;
-          batch.push({ nodes, pieces, text });
-          chars += text.length;
-        }
-        if (!batch.length) continue;
+        const block = queue.shift();
+        queued.delete(block);
+        if (!block.isConnected) continue;
+        const nodes = nodesOf(block);
+        const pieces = nodes.map((n) => n.nodeValue);
+        const text = pieces.join("");
+        if (core.countWords(text) < MIN_WORDS) continue;
 
-        const res = await send({ type: "reden:bionic", paragraphs: batch.map((b) => b.text) });
-        if (myGen !== gen) return; // turned off or restarted while waiting
-        if (!res || !res.ok) return goOffline(); // backend gone: REden stops having any effect
-        batch.forEach((b, i) => {
-          const rec = { ...b, marks: res.data[i] };
-          rendered.push(rec);
-          renderRecord(rec);
-        });
-        await new Promise((r) => setTimeout(r, 0)); // let the page breathe between batches
+        let words;
+        try { words = await analyze(text); }
+        catch (_) { if (myGen === gen) teardown("offline"); return; }
+        if (myGen !== gen) return;
+        draw(nodes, pieces, core.buildFlags(text, words));
       }
     } finally {
-      if (myGen === gen) sending = false;
-      if (phase === "on" && myGen === gen && queue.length) pump();
+      if (myGen === gen) workers--;
     }
   }
 
-  function setOrClear(span, prop, value) {
-    if (value) span.style.setProperty(prop, value, "important");
-    else span.style.removeProperty(prop);
-  }
-
-  function styleSpan(span, parent) {
-    setOrClear(span, "line-height", settings.bionicSpacing > 0 ? String(settings.bionicSpacing) : "");
-    setOrClear(span, "letter-spacing", settings.bionicLetter > 0 ? settings.bionicLetter + "em" : "");
-    setOrClear(span, "font-family", core.FONT_STACKS[settings.bionicMode] || "");
-    let color = "";
-    const p = parent || span.parentElement; // new spans aren't attached yet, so the caller passes the parent
-    if (settings.bionicContrast && p) {
-      if (!contrastCache.has(p)) {
-        const own = span.style.color;
-        span.style.removeProperty("color"); // read the page's color, not ours
-        contrastCache.set(p, core.contrastColor(getComputedStyle(p).color));
-        if (own) span.style.color = own;
-      }
-      color = contrastCache.get(p) || "";
-    }
-    setOrClear(span, "color", color);
-  }
-
-  function renderRecord(rec) {
-    const flags = core.applyTiers(rec.text, rec.marks, settings.bionicStrength);
+  function draw(nodes, pieces, flags) {
     let offset = 0;
-    rec.nodes.forEach((node, i) => {
-      const piece = rec.pieces[i];
+    nodes.forEach((node, i) => {
+      const piece = pieces[i];
       const start = offset;
       offset += piece.length;
-      if (phase !== "on" || !node.isConnected || node.nodeValue !== piece) return; // page changed it meanwhile
+      if (!node.isConnected || node.nodeValue !== piece) return; // the page changed it meanwhile
       const segs = core.segmentsFromFlags(piece, flags, start);
       if (!segs.some((s) => s.tier)) return;
 
       const span = document.createElement("span");
       span.className = "reden-w";
       for (const s of segs) {
-        if (s.tier) {
-          const b = document.createElement("b");
-          b.className = "reden-b";
-          b.style.setProperty("font-weight", s.tier === 2 ? "800" : "600", "important");
-          b.textContent = s.text;
-          span.appendChild(b);
-          wordCount++;
-        } else {
-          span.appendChild(document.createTextNode(s.text));
-        }
+        if (!s.tier) { span.appendChild(document.createTextNode(s.text)); continue; }
+        const faded = s.tier === core.FADED;
+        const el = document.createElement(faded ? "span" : "b");
+        el.className = faded ? "reden-f" : "reden-b";
+        if (faded) el.style.setProperty("opacity", FADE_OPACITY, "important");
+        else { el.style.setProperty("font-weight", WEIGHT[s.tier], "important"); boldCount++; }
+        el.textContent = s.text;
+        span.appendChild(el);
       }
-      styleSpan(span, node.parentElement);
       originals.set(span, node);
       node.replaceWith(span);
     });
   }
 
-  // ---------- watching for new content ----------
   function onMutations(records) {
     for (const r of records) {
       if (r.type === "characterData") { enqueueText(r.target); continue; }
@@ -227,141 +220,51 @@
     }
   }
 
-  // ---------- zoom ----------
-  function applyZoom() {
-    const el = document.documentElement;
-    if (settings.bionicSize > 100) {
-      if (savedZoom === null) savedZoom = el.style.getPropertyValue("zoom");
-      el.style.setProperty("zoom", String(settings.bionicSize / 100), "important");
-    } else {
-      resetZoom();
-    }
-  }
-
-  function resetZoom() {
-    if (savedZoom === null) return;
-    const el = document.documentElement;
-    el.style.removeProperty("zoom");
-    if (savedZoom) el.style.setProperty("zoom", savedZoom);
-    savedZoom = null;
-  }
-
   // ---------- on / off ----------
   async function start() {
-    phase = "checking";
     const myGen = ++gen;
+    phase = "checking";
     const health = await send({ type: "reden:health" });
-    if (myGen !== gen) return; // turned off meanwhile
-    if (!health || !health.ok) { phase = "offline"; return; } // backend not there: stay inactive
+    if (myGen !== gen) return;
+    if (!health || !health.ok) { phase = "offline"; return; }
     phase = "on";
-    appliedStrength = settings.bionicStrength;
-    applyZoom();
     observer = new MutationObserver(onMutations);
     observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
     if (document.body) enqueueTree(document.body);
   }
 
-  // Remove everything REden did to the page and forget pending work.
+  // Undo everything REden did and forget pending work.
   function teardown(nextPhase) {
     gen++;
     phase = nextPhase;
     if (observer) { observer.disconnect(); observer = null; }
     queue = [];
     queued = new WeakSet();
-    sending = false;
-    rendered = [];
-    wordCount = 0;
-    resetZoom();
-    beginRestore();
-  }
-  const stop = () => teardown("off");
-  const goOffline = () => teardown("offline");
-
-  // Put the original text nodes back in short batches so long pages never freeze.
-  function beginRestore() {
-    restoreList = [...document.querySelectorAll("span.reden-w")];
-    ri = 0;
-    if (!restoring) { restoring = true; setTimeout(restoreSlice, 0); }
-  }
-
-  function restoreSlice() {
-    const t0 = performance.now();
-    while (ri < restoreList.length && performance.now() - t0 < SLICE_MS) {
-      const span = restoreList[ri++];
-      if (!span.isConnected) continue;
+    workers = 0;
+    waiting.splice(0).forEach((r) => r()); // waiting requests see the new gen and give up
+    boldCount = 0;
+    for (const span of document.querySelectorAll("span.reden-w")) {
       span.replaceWith(originals.get(span) || document.createTextNode(span.textContent));
     }
-    if (ri < restoreList.length) return void setTimeout(restoreSlice, 0);
-    restoring = false;
-    restoreList = [];
-    ri = 0;
-    const fns = [...afterRestore];
-    afterRestore.clear();
-    fns.forEach((fn) => fn());
   }
 
-  // The bold amount changed: undo, then draw again from the answers we already have (no new request).
-  function reflow() {
-    const recs = rendered;
-    rendered = [];
-    wordCount = 0;
-    const myGen = gen;
-    afterRestore.add(function redraw() {
-      if (phase !== "on" || myGen !== gen) return;
-      let i = 0;
-      (function step() {
-        if (phase !== "on" || myGen !== gen) return;
-        const t0 = performance.now();
-        while (i < recs.length && performance.now() - t0 < SLICE_MS) {
-          const rec = recs[i++];
-          rendered.push(rec);
-          renderRecord(rec);
-        }
-        if (i < recs.length) setTimeout(step, 0);
-      })();
-    });
-    beginRestore();
-  }
-
-  function reconcile() {
-    if (!settings.bionicOn) { if (phase !== "off") stop(); return; }
-    if (restoring) { afterRestore.add(reconcile); return; } // wait until old formatting is fully removed
-    if (phase === "off" || phase === "offline") return void start(); // (re)check the backend
-    if (phase === "checking") return;
-    if (settings.bionicStrength !== appliedStrength) { appliedStrength = settings.bionicStrength; return reflow(); }
-    applyZoom();
-    for (const span of document.querySelectorAll("span.reden-w")) styleSpan(span);
-  }
-
-  function scheduleReconcile() {
-    clearTimeout(reconcileTimer);
-    reconcileTimer = setTimeout(reconcile, 80); // slider drags fire many changes
+  function apply(on) {
+    if (!on) { if (phase !== "off") teardown("off"); return; }
+    if (phase === "off" || phase === "offline") start();
   }
 
   // ---------- wiring ----------
   api.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local") return;
-    let touched = false;
-    for (const key of Object.keys(core.DEFAULTS)) {
-      if (key in changes) {
-        settings[key] = changes[key].newValue === undefined ? core.DEFAULTS[key] : changes[key].newValue;
-        touched = true;
-      }
-    }
-    if (touched) scheduleReconcile();
+    if (area === "local" && "bionicOn" in changes) apply(!!changes.bionicOn.newValue);
   });
 
   api.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-    if (msg && msg.type === "reden:recheck") { // the popup was opened: try the backend again if we gave up
-      if (settings.bionicOn && phase === "offline" && !restoring) start();
-      sendResponse({ phase });
-    } else if (msg && msg.type === "reden:status") {
-      sendResponse({ phase, active: phase === "on", offline: phase === "offline", words: wordCount, busy: sending || queue.length > 0 });
+    if (!msg) return;
+    if (msg.type === "reden:recheck" && phase === "offline") start(); // popup opened: try the backend again
+    if (msg.type === "reden:recheck" || msg.type === "reden:status") {
+      sendResponse({ phase, bold: boldCount, busy: workers > 0 || queue.length > 0 });
     }
   });
 
-  api.storage.local.get(Object.keys(core.DEFAULTS)).then((stored) => {
-    settings = { ...core.DEFAULTS, ...stored };
-    reconcile();
-  });
+  api.storage.local.get("bionicOn").then((s) => apply(!!s.bionicOn));
 })();
