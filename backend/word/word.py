@@ -4,9 +4,12 @@
 
 算法：
 1. 信息曲线：前 k 个字母把词典（前 10 万个英语词，按词频加权）缩小了多少。
-2. 窗口：只在词长的 25% 到 65% 之间选。
-3. 拐点：曲线比"首尾连线"高得最多的位置（再多加粗，帮助变小）。
-4. 词素吸附：拐点附近 2 个字母内有词素边界（un|happy、run|ning）就对齐过去。
+2. 窗口：只在词长的 45% 到 75% 之间选（大多数词落在 50%~70%）。
+3. 拐点：曲线比"首尾连线"高得最多的位置（再多加粗，帮助变小），
+   再加一点向 60% 的拉力（前 5000 个常用词实测平均 60%，85% 的词落在 50%~70%）。
+4. 词素吸附：窗口内有词素边界（read|ing、inform|ation、week|end）就对齐到离拐点最近的那个。
+   复合词只认白名单成分（every、one、day、ship……），挡住 sea|son、car|pet 这类拆错。
+   un|happy、run|ning 这类边界太靠前（不到 45%），不会被吸附。
 词表里没有的词（人名、术语等）固定加粗 45%。第一次调用会加载词表，约 3 秒。
 """
 
@@ -15,20 +18,49 @@ import os
 import threading
 from functools import lru_cache
 
-LO, HI = 0.25, 0.65  # 加粗词长的 25% 到 65%
+LO, HI = 0.45, 0.75  # 加粗词长的 45% 到 75%
+TARGET = 0.6  # 拐点向词长的 60% 靠拢
+PULL = 0.5  # 拉力大小：0 = 纯拐点，越大越接近固定 60%
 FALLBACK = 0.45  # 词表外的词固定加粗 45%
-SNAP = 2  # 词素边界离拐点最多差 2 个字母才吸附
 MIN_STEM = 3  # 词干至少 3 个字母
 PREFIXES = [
-    "anti", "auto", "counter", "dis", "en", "em", "extra", "fore", "in", "im",
-    "inter", "mid", "mis", "non", "out", "over", "pre", "re", "semi", "sub",
-    "super", "trans", "un", "under", "up",
+    "anti", "auto", "counter", "dis", "extra", "fore", "inter", "mid", "mis", "non",
+    "out", "over", "pre", "semi", "sub", "super", "trans", "under",
 ]
 SUFFIXES = [
     "able", "ible", "al", "ance", "ence", "ed", "en", "er", "ful",
     "ing", "ion", "tion", "sion", "ation", "ish", "ive", "less", "ly", "ment",
     "ness", "or", "ous", "es", "ity", "ize", "ise",
 ]
+
+# 复合词（every|one、week|end）：只认"至少一半是常见复合词成分"的拆法，避免 sea|son、car|pet 这类拆错。
+COMPOUND_HEADS = {
+    "every", "some", "any", "with", "down", "after", "there", "where", "here", "back",
+    "off", "week", "birth", "foot", "hand", "head", "home", "house", "work", "news",
+    "water", "sun", "moon", "fire", "air", "sea", "land", "life", "light", "black",
+    "white", "green", "blue", "red", "gold", "high", "low", "short", "long", "side",
+    "book", "break", "grand", "care", "night", "town", "wood",
+}
+COMPOUND_TAILS = {
+    "one", "body", "time", "times", "day", "days", "way", "ways", "self", "out", "ever",
+    "wise", "ward", "wards", "side", "end", "man", "men", "woman", "women", "ball", "work",
+    "book", "ware", "house", "room", "land", "line", "light", "life", "point", "board",
+    "place", "ship", "hood", "dom", "like", "worthy", "proof", "made", "yard", "shop",
+    "town", "field", "ground", "water", "wood", "boy", "girl", "fish", "bird", "fly",
+    "craft", "phone", "walk", "port", "fall", "stone", "mark", "box", "bag", "door",
+}
+COMPOUND_MIN_FREQ = 1e-5  # 不在白名单的那一半必须是常用词
+
+
+def _is_compound(a, b, vocab):
+    """a|b 是否像真的复合词。3 个字母的一半最容易拆错（sea|son、ran|dom），所以要求更严。"""
+    if len(b) < 3:
+        return False
+    if b in COMPOUND_TAILS:  # every|one、free|dom：短的前半段（ran|dom）要在白名单里
+        return vocab.get(a, 0) > COMPOUND_MIN_FREQ and (len(b) > 3 or len(a) > 3 or a in COMPOUND_HEADS)
+    if a in COMPOUND_HEADS:  # with|draw、hand|some：后半段要 4 个字母以上（挡住 sea|son、off|ice）
+        return len(b) >= 4 and vocab.get(b, 0) > COMPOUND_MIN_FREQ
+    return False
 
 
 @lru_cache(maxsize=1)
@@ -82,8 +114,10 @@ def _morpheme_boundaries(w, vocab):
     shared = [
         len(os.path.commonprefix([w, lemma]))
         for lemma in _lemmas(w)
-        if lemma != w and lemma in vocab
+        if lemma in vocab
     ]
+    # 复合词：week|end、every|one
+    found |= {k for k in range(1, len(w)) if _is_compound(w[:k], w[k:], vocab)}
     lemma_k = max((k for k in shared if MIN_STEM <= k < len(w)), default=None)
     if lemma_k is not None:
         found.add(lemma_k)
@@ -109,14 +143,18 @@ def word(w: str) -> list[int]:
         return list(range(n if n < 2 else round(n * FALLBACK)))
 
     cum = [-math.log2(mass[key[:k]]) for k in range(1, n)]  # cum[k-1]：前 k 个字母揭示的信息量
-    lo, hi = math.ceil(n * LO), math.floor(n * HI)
+    lo, hi = math.ceil(n * LO), math.floor(n * HI)  # 改 LO/HI 时注意：窗口不能是空的（如 LO=0.45、HI=0.65 时 3 字母词会报错）
+    span = abs(cum[-1] - cum[0]) or 1.0  # 把 gap 缩放到 0~1 左右，拉力才和词长、词频无关
 
-    def gap(k):  # 曲线高出"首尾连线"多少
-        return cum[k - 1] - (cum[0] + (cum[-1] - cum[0]) * (k - 1) / max(n - 2, 1))
+    def gap(k):  # 曲线高出"首尾连线"多少（按曲线总高度归一化）
+        return (cum[k - 1] - (cum[0] + (cum[-1] - cum[0]) * (k - 1) / max(n - 2, 1))) / span
 
-    knee = max(range(lo, hi + 1), key=lambda k: (gap(k), k))  # 窗口内最高点，并列取靠后的
+    def score(k):  # 拐点越明显越好，离 50% 越远扣分越多
+        return gap(k) - PULL * abs(k / n - TARGET)
 
-    near = [m for m in _morpheme_boundaries(key, freqs) if lo <= m <= hi and abs(m - knee) <= SNAP]
+    knee = max(range(lo, hi + 1), key=score)  # 窗口内得分最高
+
+    near = [m for m in _morpheme_boundaries(key, freqs) if lo <= m <= hi]
     if near:
         knee = min(near, key=lambda m: (abs(m - knee), -m))  # 最近的词素边界，距离相同取靠后的
     return list(range(knee))
