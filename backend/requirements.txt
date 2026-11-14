@@ -3,3 +3,4 @@ en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_
 en_core_web_trf @ https://github.com/explosion/spacy-models/releases/download/en_core_web_trf-3.8.0/en_core_web_trf-3.8.0-py3-none-any.whl
 flask==3.1.2
 flask-cors==5.0.0
+wordfreq==3.1.1
