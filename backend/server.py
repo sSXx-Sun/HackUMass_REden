@@ -134,12 +134,15 @@ def vocab_info():
 
 @app.get("/vocab/word")
 def vocab_word():
-    """Quiz word at (or just after) ?index=N in the frequency list: {"index", "word", "zipf"}."""
+    """Quiz word picked at random within about 15 words of ?index=N (and inside the current search range ?lo=&hi= if given):
+    {"index", "word", "zipf"}. The popup continues the binary search from the index actually returned."""
     try:
         index = int(request.args.get("index", "0"))
+        lo = int(request.args["lo"]) if "lo" in request.args else None
+        hi = int(request.args["hi"]) if "hi" in request.args else None
     except ValueError:
-        return jsonify(error="index must be a number"), 400
-    return jsonify(vocab.word_at(index))
+        return jsonify(error="index, lo and hi must be numbers"), 400
+    return jsonify(vocab.word_at(index, lo, hi))
 
 
 @app.get("/vocab/threshold")

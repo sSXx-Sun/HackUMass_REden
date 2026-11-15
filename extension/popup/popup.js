@@ -5,7 +5,7 @@ const tx = (key, vars) => globalThis.REdenStrings.t(key, vars); // from strings.
 
 const DEFAULTS = {
   activeTab: "home",
-  dark: false, large: false, popupSize: 14, tintSite: true, vocabSize: 0,
+  dark: false, large: false, popupSize: 14, tintSite: true, vocabSize: 0, vocabLow: 0, vocabHigh: 0,
   backendUrl: "http://127.0.0.1:5000", // backend/server.py
   pageDark: false,
   ...core.DEFAULTS,
@@ -241,9 +241,6 @@ function renderSample(el, text, scaled) {
     el.style.letterSpacing = saved.bionicLetter > 0 ? saved.bionicLetter + "em" : "";
   }
 }
-function syncPresetRadios() {
-  document.querySelectorAll('input[name="preset"]').forEach((r) => { r.checked = Number(r.value) === saved.bionicStrength; });
-}
 function renderPreview() {
   renderSample($("preview"), PREVIEW_TEXT, true);
   renderSample($("specimen"), SPECIMEN_TEXT, false);
@@ -310,26 +307,16 @@ function initBionic() {
     s.addEventListener("change", () => setBionic(s.checked));
   });
 
-  const strength = $("bio-strength");
   const size = $("bio-size");
   const spacing = $("bio-spacing");
-  strength.value = saved.bionicStrength;
   size.value = saved.bionicSize;
   spacing.value = String(saved.bionicSpacing);
-  $("bio-strength-out").textContent = saved.bionicStrength + "%";
   $("bio-size-out").textContent = saved.bionicSize + "%";
 
   // Merge pending changes so two quick edits (e.g. size then spacing) are both saved.
   let pending = {};
   const flush = debounce(() => { const p = pending; pending = {}; storageSet(p); }, 100);
   const persist = (patch) => { Object.assign(pending, patch); flush(); };
-  strength.addEventListener("input", () => {
-    saved.bionicStrength = core.clampPct(strength.value);
-    $("bio-strength-out").textContent = saved.bionicStrength + "%";
-    renderPreview();
-    syncPresetRadios();
-    persist({ bionicStrength: saved.bionicStrength });
-  });
   size.addEventListener("input", () => {
     saved.bionicSize = Number(size.value);
     $("bio-size-out").textContent = saved.bionicSize + "%";
@@ -342,17 +329,7 @@ function initBionic() {
     persist({ bionicSpacing: saved.bionicSpacing });
   });
 
-  // Home: intensity presets and page text style
-  document.querySelectorAll('input[name="preset"]').forEach((r) =>
-    r.addEventListener("change", () => {
-      saved.bionicStrength = core.clampPct(r.value);
-      strength.value = saved.bionicStrength;
-      $("bio-strength-out").textContent = saved.bionicStrength + "%";
-      renderPreview();
-      persist({ bionicStrength: saved.bionicStrength });
-    })
-  );
-  syncPresetRadios();
+  // Home: page text style
   const modeRadios = [...document.querySelectorAll('input[name="mode"]')];
   if (!core.FONT_STACKS.hasOwnProperty(saved.bionicMode)) saved.bionicMode = "original";
   modeRadios.forEach((r) => {
@@ -364,26 +341,13 @@ function initBionic() {
     });
   });
 
-  // Home: reading style. Read: min_dim_thres for the Sentence tree style
+  // Home: reading style
   document.querySelectorAll('input[name="style"]').forEach((r) => {
     r.checked = r.value === (["tree", "layout"].includes(saved.bionicStyle) ? saved.bionicStyle : "weight");
     r.addEventListener("change", () => {
       saved.bionicStyle = r.value;
       persist({ bionicStyle: r.value });
     });
-  });
-  const dim = $("bio-dim");
-  const [dimLo, dimHi] = core.DIM_MIN_RANGE;
-  if (!(saved.dimMin >= dimLo && saved.dimMin <= dimHi)) { // older, lighter values (e.g. 40) move up to the new default
-    saved.dimMin = core.DEFAULTS.dimMin;
-    storageSet({ dimMin: saved.dimMin });
-  }
-  dim.value = saved.dimMin;
-  $("bio-dim-out").textContent = saved.dimMin + "%";
-  dim.addEventListener("input", () => {
-    saved.dimMin = Number(dim.value);
-    $("bio-dim-out").textContent = saved.dimMin + "%";
-    persist({ dimMin: saved.dimMin });
   });
 
   // Read: letter spacing and contrast
@@ -510,12 +474,19 @@ function initRead() {
 }
 
 // ---------- VOCABULARY TEST ----------
-// Binary search over the backend's word-frequency list (core.vocabStart/Answer): starts at 50 %, 10 questions.
-// The result is saved as vocabZipf (frequency threshold) and vocabSize (≈ number of words known).
+// Bayesian adaptive test over the backend's word-frequency list (core.vocabStart/Answer): starts at 50 %, 10 questions,
+// one wrong answer only shifts the result. Saved as vocabZipf (frequency threshold), vocabSize (≈ words known) and vocabLow/High.
 async function getJson(path) {
   const r = await fetch(saved.backendUrl.replace(/\/$/, "") + path);
   if (!r.ok) throw new Error("HTTP " + r.status);
   return r.json();
+}
+
+// 11 994 -> "12,000": the test can't be more precise than that, so don't pretend it is.
+function roundWords(n) {
+  const x = Number(n) || 0;
+  const step = x >= 10000 ? 1000 : x >= 1000 ? 100 : 10;
+  return (Math.round(x / step) * step).toLocaleString("en-US");
 }
 
 function initVocab() {
@@ -525,7 +496,9 @@ function initVocab() {
 
   function showLevel(msg) {
     note("vocab-status", msg || (saved.vocabZipf > 0
-      ? tx("v_level", { n: Number(saved.vocabSize || 0).toLocaleString("en-US") })
+      ? tx(saved.vocabHigh > saved.vocabLow ? "v_level_range" : "v_level", {
+        n: roundWords(saved.vocabSize), lo: roundWords(saved.vocabLow), hi: roundWords(saved.vocabHigh),
+      })
       : tx("v_none")));
     startBtn.textContent = saved.vocabZipf > 0 ? tx("v_retest") : tx("v_start");
   }
@@ -537,7 +510,8 @@ function initVocab() {
   }
   async function askNext() {
     yes.disabled = no.disabled = true;
-    try { shown = await getJson("/vocab/word?index=" + core.vocabNextIndex(quiz)); }
+    // the backend picks a random word within about 15 of the midpoint, inside the current range (lo, hi)
+    try { shown = await getJson(`/vocab/word?index=${core.vocabNextIndex(quiz)}&lo=${quiz.lo}&hi=${quiz.hi}`); }
     catch (_) { return endQuiz(tx("v_backend")); }
     $("vocab-word").textContent = shown.word;
     $("vocab-progress").textContent = tx("v_progress", { n: quiz.asked + 1, total: core.VOCAB_QUESTIONS });
@@ -553,9 +527,12 @@ function initVocab() {
     let t;
     try { t = await getJson("/vocab/threshold?index=" + index); }
     catch (_) { return endQuiz(tx("v_backend")); }
+    const [low, high] = core.vocabRange(quiz);
     saved.vocabZipf = Number(t.zipf) || 0;
     saved.vocabSize = index;
-    await storageSet({ vocabZipf: saved.vocabZipf, vocabSize: saved.vocabSize });
+    saved.vocabLow = low;
+    saved.vocabHigh = high;
+    await storageSet({ vocabZipf: saved.vocabZipf, vocabSize: index, vocabLow: low, vocabHigh: high });
     endQuiz();
   }
 
@@ -644,7 +621,7 @@ function initSettings() {
 
 // ---------- start ----------
 (async function init() {
-  saved = { ...DEFAULTS, ...(await storageGet(Object.keys(DEFAULTS))) };
+  saved = core.withFixed({ ...DEFAULTS, ...(await storageGet(Object.keys(DEFAULTS))) }); // Bold amount / faintest words are built in
   if (saved.large && saved.popupSize === 14) saved.popupSize = 18; // old "Large text" checkbox
   if (saved.backendUrl === "http://127.0.0.1:5050") { // the old app.py address; everything is in server.py now
     saved.backendUrl = DEFAULTS.backendUrl;

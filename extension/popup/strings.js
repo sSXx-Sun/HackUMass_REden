@@ -79,6 +79,7 @@
     cleared: "Words and notes cleared.", unavailable: "Unavailable",
     v_none: "Not tested yet.",
     v_level: "Your estimated vocabulary: about {n} English words. Rarer words count as new to you.",
+    v_level_range: "Your estimated vocabulary: about {n} English words (likely {lo}–{hi}). Rarer words count as new to you.",
     v_start: "Test my vocabulary", v_retest: "Test again",
     v_loading: "Starting…",
     v_progress: "Word {n} of {total}",

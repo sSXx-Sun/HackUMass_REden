@@ -199,20 +199,42 @@ test("splitPiece cuts a text node at the breaks inside it and keeps the text exa
   assert.deepEqual(core.splitPiece("abc", 20, breaks), [{ text: "abc" }]);
 });
 
-test("vocabulary test: starts at 50 %, 10 answers home in on the level", () => {
-  const total = 92683;
+function runVocab(level, total, flip = () => false) {
   let q = core.vocabStart(total);
-  assert.equal(core.vocabNextIndex(q), Math.floor(total / 2)); // first question from the middle
-  const level = 12000; // a reader who knows the 12 000 most common words
   while (!core.vocabDone(q)) {
     const i = core.vocabNextIndex(q);
-    q = core.vocabAnswer(q, i, i < level);
+    q = core.vocabAnswer(q, i, flip(q.asked) ? !(i < level) : i < level);
   }
-  assert.equal(q.asked, core.VOCAB_QUESTIONS);
-  assert.ok(Math.abs(core.vocabEstimate(q) - level) < total / 2 ** 10 + 1, String(core.vocabEstimate(q)));
-  // the backend may show a word a little after the asked index; the search uses the shown one
-  const q2 = core.vocabAnswer(core.vocabStart(100), 57, false);
-  assert.deepEqual([q2.lo, q2.hi], [0, 57]);
+  return q;
+}
+const ratio = (a, b) => Math.max(a, b) / Math.min(a, b);
+
+test("vocabulary test: starts at 50 %, 10 answers home in on the level", () => {
+  const total = 92683;
+  assert.equal(core.vocabNextIndex(core.vocabStart(total)), Math.floor(total / 2)); // first question from the middle
+  for (const level of [2000, 12000, 40000]) {
+    const q = runVocab(level, total);
+    assert.equal(q.asked, core.VOCAB_QUESTIONS);
+    assert.ok(ratio(core.vocabEstimate(q), level) < 1.3, `${level} -> ${core.vocabEstimate(q)}`);
+    const [lo, hi] = core.vocabRange(q);
+    assert.ok(lo <= core.vocabEstimate(q) && core.vocabEstimate(q) <= hi);
+  }
+});
+
+test("vocabulary test: one wrong answer doesn't ruin the result (binary search would)", () => {
+  const total = 92683, level = 12000;
+  for (const bad of [0, 1, 2, 5]) { // the slip happens at question 1, 2, 3 or 6
+    const q = runVocab(level, total, (n) => n === bad);
+    assert.ok(ratio(core.vocabEstimate(q), level) < 2, `slip at ${bad + 1}: ${core.vocabEstimate(q)}`);
+  }
+});
+
+test("vocabulary test: answers about the word actually shown, range stays usable", () => {
+  let q = core.vocabStart(92683);
+  q = core.vocabAnswer(q, 46350, false); // the backend showed a word a little after the asked index
+  assert.deepEqual(q.answers, [[46350, false]]);
+  assert.ok(q.hi <= 46350 * 1.5 && q.lo >= 0 && q.lo < q.hi);
+  assert.ok(core.vocabNextIndex(q) < 46350); // "I don't" -> next word is more common
 });
 
 test("splitPiece: a gloss goes after the word, even at the very end of a text node", () => {
@@ -220,6 +242,14 @@ test("splitPiece: a gloss goes after the word, even at the very end of a text no
   assert.deepEqual(core.splitPiece("cat sat", 0, marks), [{ text: "cat" }, { gloss: "猫" }, { text: " sat" }]);
   assert.deepEqual(core.splitPiece("cat", 0, marks), [{ text: "cat" }, { gloss: "猫" }]);     // word ends where the node ends
   assert.deepEqual(core.splitPiece(" sat", 3, marks), [{ text: " sat" }]);                  // so the next node doesn't get it too
+});
+
+test("Bold amount and faintest words are built in: stored values are ignored", () => {
+  assert.deepEqual(core.FIXED, { bionicStrength: 40, dimMin: 60 });
+  const s = core.withFixed({ ...core.DEFAULTS, bionicStrength: 75, dimMin: 30, bionicStyle: "tree" });
+  assert.equal(s.bionicStrength, 40);
+  assert.equal(s.dimMin, 60);
+  assert.equal(s.bionicStyle, "tree"); // other settings are kept
 });
 
 test("segmentsFromFlags works on a piece of a longer text", () => {

@@ -19,7 +19,9 @@ Python backend = `backend/server.py`. Built for HackUMass.
   - popup helpers (moved from the old `app.py`): `POST /sentences`, `POST /page`, `GET /page`; `POST /word` (`word.analyze_word` → `nlp.py`) is unused since the Words tab was removed
   - "Indent" style: `POST /get_sentence_layout` (`sentence/layout.py`, Claude's)
   - vocabulary (`vocab/vocab.py`, Claude's, wordfreq only): `GET /vocab/info`, `GET /vocab/word?index=`, `GET /vocab/threshold?index=`, `POST /vocab/unknown`;
-    `POST /translate` is a **placeholder that always returns `{"translation": null}`** (user: implement later)
+    `POST /translate` (teammate's commit c597240): Gemini (`google-genai`, model `GEMINI_MODEL`, default gemini-3.5-flash-lite), `{word, sentence|context, to_language}`
+    → `{translation}` (default Simplified Chinese; null on any error). **Key: `GEMINI_API_KEY` in `backend/.env`** (gitignored). It was once misplaced in
+    `backend/word/.env`, which made every translation null; moved 2026-11-14 and verified ("intractable" → 难以解决的).
   - unused but kept (tried and set aside): `/get_sentence_highlight` (teammates' older rating), `/get_sentence_roles` (`roles.py`)
   - `app.py`, `bionic/`, `tests/test_bionic.py` are the old port-5050 API, unused (not deleted; ask before removing). `nlp.py` **is** used (by `analyze_word`).
 - `UI` – empty 0-byte file at the repo root. Ignore it.
@@ -29,7 +31,8 @@ Python backend = `backend/server.py`. Built for HackUMass.
 node --test extension/tests/core.test.js extension/tests/strings.test.js   # unit tests (folder form `node --test extension/tests` fails on Node 24)
 node --check extension/popup/popup.js            # quick syntax checks (same for content/bionic.js, background/background.js)
 
-cd backend && .venv/Scripts/python.exe server.py # Windows; http://127.0.0.1:5000, spaCy loads on first request
+cd backend && venv/Scripts/python.exe server.py  # Windows; http://127.0.0.1:5000. Use `venv` (has google-genai + python-dotenv);
+                                                 # `.venv` lacks them (run `uv sync` to update it). spaCy loads on first request
 cd backend && .venv/Scripts/python.exe -m unittest tests.test_rating tests.test_depth tests.test_roles tests.test_layout -v   # loads the model, ~5 s
 cd backend && .venv/Scripts/python.exe -m unittest tests.test_vocab -v   # wordfreq only, ~1 s
 cd backend && .venv/Scripts/python.exe -m sentence.rating                # prints sample sentences with ratings
@@ -43,14 +46,16 @@ Firefox: `about:debugging#/runtime/this-firefox` → Load Temporary Add-on → `
   strings live in `popup/strings.js` (`tx(key, vars)`), static text is plain English in the HTML. Don't bring languages back unless asked.
 - **Page look = "version C"** (user: "句子结构加粗+每个单词加粗"): every word's letters from `/get_word_highlight` are bold, weight by `/get_sentence_rating`
   0/1/2 = 500/650/800; the rest of each word at opacity .75. Constants `WEIGHT`, `FADE_OPACITY` at the top of `content/bionic.js`.
-  The Bold amount slider/presets scale the letters: 40 = backend's choice, 20 = half, 80 = double (as a prefix) — `core.buildFlags(text, words, pct)`.
+  **Bold amount and min_dim_thres are built in (2026-11-14, user):** `core.FIXED = {bionicStrength: 40, dimMin: 60}` is applied over stored settings by
+  `core.withFixed` in the popup and the content script (old saved values are ignored). The Bold amount slider, the Home "Bold intensity" presets and the
+  "Faintest words" slider were removed. 40 = exactly the letters the backend chose (`core.buildFlags(text, words, pct)` still supports scaling).
 - **Three reading styles** (Home > Reading style: Weight / Tree / Indent, key `bionicStyle`): `weight` (above, default), **`tree`**, and `layout` (below). Tree (user: "句子树，越深越浅，但是有min_dim_thres", 2026-11-14):
   every word's opacity = max(min_dim_thres, AA floor, 1 − 0.1 × depth) (`core.dimFor`, `TREE_STEP` 0.1), bold letters from `word.py` at weight 700 (`TREE_WEIGHT`), no extra fade.
-  min_dim_thres = key `dimMin` (opacity %, **50–90, default 60**; user said 40 was too light; stored values outside the range are reset), slider "Faintest words" on Read.
+  min_dim_thres = `dimMin`, fixed at 60 % (user said 40 was too light; now built in, no slider).
   **Accessibility guard:** `core.minOpacityForContrast(fg, bg)` gives the lowest opacity that keeps WCAG AA 4.5:1 against the element's real background
   (`aaFloor()` in the content script, cached per parent; background = first ancestor with an opaque background color, else white). It applies to tree-style dimming
   and to the weight style's faded word ends. E.g. black text: floor 0.54; #333: 0.67; #555: 0.81; text already below AA is never faded. Changing the style restarts formatting (different backend data);
-  changing dimMin or Bold amount re-draws from cached answers. The popup preview does not show the tree style (it needs the backend).
+  (dimMin / Bold amount are fixed now). The popup preview does not show the tree style (it needs the backend).
 - **Rating (`sentence/rating.py`, "make bold more accurate"):** 2 = each clause's subject head / verb / object / `not`; copula sentences give 2 to the complement, not `is`;
   auxiliaries, copulas, pronoun subjects, weak adverbs, numbers = 0; other content words = 1; named entities, compound proper names and hyphenated words share one score.
   Known tradeoff: coordinated lists (names, products) all get 2.
@@ -65,14 +70,21 @@ Firefox: `about:debugging#/runtime/this-firefox` → Load Temporary Add-on → `
   Verified in headless Chrome (real core.js + bionic.js, stubbed APIs replaying real server.py answers, 360 px column): screenshot shows indented wrap lines;
   restore leaves the HTML byte-identical. Test page lives only in the temp dir (not committed).
 - **Set aside:** whole-word bold/fade roles (`roles.py`).
-- **Vocabulary level + unknown words (2026-11-14, user request):** Read tab > Vocabulary. "Test my vocabulary" = 10 yes/no questions, binary search over the wordfreq
-  list (~92.7k English words, ascii letters, 3–15 long), **starting at 50 %** (`core.vocabStart/NextIndex/Answer/Done/Estimate`, `VOCAB_QUESTIONS` 10). The backend
+- **Vocabulary level + unknown words (2026-11-14, user request):** Read tab > Vocabulary. "Test my vocabulary" = 10 yes/no questions over the wordfreq
+  list (~92.7k English words, ascii letters, 3–15 long), **first question at 50 %** (`core.vocabStart/NextIndex/Answer/Done/Estimate/Range`, `VOCAB_QUESTIONS` 10).
+  **Algorithm = Bayesian adaptive test, not binary search** (user worried one slip ruins binary search; simulated: with 5 % slips binary search was off
+  by >2x in 15 % of tests, worst 5 % ≈6x; Bayesian 3 %, ≈1.8x). Posterior over the level on 400 log-spaced points; answer model
+  P(know) = 0.05 + 0.9·logistic((log level − log index)/0.3); next question at the posterior median; estimate = median; shown range = 10th–90th percentile
+  (contains the true level ~80–90 % in simulation). lo/hi sent to the backend = 5th–95th percentile. Saved: vocabZipf, vocabSize, vocabLow, vocabHigh;
+  popup shows "about 12,000 English words (likely 8,600–17,000)" (rounded). Real popup run with the first answer deliberately wrong: 14,000 (true 12,000). The backend
   skips names/international words (`is_international`: about as common in ≥4 of fr/de/es/it/pt/nl/pl/sv, e.g. pelosi, internet) and inflected forms (pandemics,
-  rubbed) when choosing the quiz word, and returns the index it actually used. Result saved as `vocabZipf` (threshold, core.DEFAULTS) + `vocabSize` (popup).
+  rubbed) and vowel-less abbreviations (hrs) when choosing the quiz word. **Random:** the word is picked at random among suitable words within ±15
+  (`vocab.JITTER`) of the midpoint, kept inside the current search range (popup sends `&lo=&hi=`), so each test asks different words; the backend
+  returns the index it actually used and the binary search continues from there. Place names like "peoria" can still appear (not filtered). Result saved as `vocabZipf` (threshold, core.DEFAULTS) + `vocabSize` (popup).
   Switch "Translate words I may not know" (`vocabOn`, needs a test first). Content script (any style): lower-case letter words of the paragraph →
   `reden:vocab` (`/vocab/unknown`: zipf < threshold, not international) → `reden:translate` per unknown word (cached) → if a string comes back, insert
   `<span class="reden-gloss"> (translation)</span>` after the word (`core.splitPiece` gloss marks: after the word's last character). `/translate` returns null,
-  so **nothing is shown yet**. Vocab failures are never fatal (no glosses). Changing vocabOn/vocabZipf restarts formatting.
+  (shows a bracket whenever Gemini returns a translation). Vocab failures are never fatal (no glosses). Changing vocabOn/vocabZipf restarts formatting.
   Verified in headless Chrome: popup quiz against the real server (simulated reader of 12,000 words → estimate 11,995, zipf 3.63); glosses render after
   "intractable"/"dubious" with a fake translation, also in the Indent style; with the real null translation nothing is added. Classic bionic reading has no evidence
   (Snell 2024, *Acta Psychologica*); never claim REden speeds reading.
@@ -82,8 +94,8 @@ Firefox: `about:debugging#/runtime/this-firefox` → Load Temporary Add-on → `
 - **Section switching is CSS-only** (hidden radio inputs `#t-<id>` + `:checked`). JS only remembers the last section. Arrow keys work natively on the radios.
 - **Dark mode** is applied by `body.dark` from JS *and* by a `body:has(#opt-dark:checked)` fallback. Keep both variable blocks in `popup.css` in sync.
   **Popup text size** is a slider (Settings, 12–22 px, key `popupSize`).
-- Bionic switch appears on **Home and Read** and both stay in sync. Home: bold-intensity presets (Low 25 / Medium 40 / High 55) and page text style
-  (Original / Rounded / Editorial). Read: fine slider, size, line spacing, letter spacing, high contrast, Automatic mode, Page words, Sentence analysis.
+- Bionic switch appears on **Home and Read** and both stay in sync. Home: reading style (Weight / Tree / Indent) and page text style
+  (Original / Rounded / Editorial). Read: font size, line spacing, letter spacing, high contrast, Automatic mode, Vocabulary, Page words, Sentence analysis.
 - Rounded/Editorial set `font-family` only on the `.reden-w` spans REden creates, so they apply only while REden is on. High contrast sets the span color to black/white.
 - **Page words** (Read tab): on click, reads the tab's visible text, `core.collectWords` lists every word, logs it in the popup and page console, POSTs to `/page`.
 - **Sentence analysis** (Read tab): selected text → `POST /sentences` (spaCy sentence split).
@@ -97,6 +109,11 @@ Firefox: `about:debugging#/runtime/this-firefox` → Load Temporary Add-on → `
 - Per paragraph: sentences (`core.sentencesOf`: `Intl.Segmenter`, merged back at `.NET` / `Node.js` / lowercase starts) → items = words **and numbers**
   (`core.wordsOf`, numbers give spaCy full context but are never bolded) → one rating request per sentence → one word request per distinct Latin/Cyrillic/Greek word (cached).
   Max 6 requests in flight, 3 paragraphs in parallel, `gen` counter drops late answers after turning off. Answers are kept in `rendered`, so changing Bold amount re-draws with no new request.
+- **Lazy (2026-11-14, user: save tokens):** a paragraph is only analysed (backend + translation requests) once it comes within 300 px of the screen
+  (`IntersectionObserver`, `VISIBLE_MARGIN`, `watchBlock`/`onVisible`); text that changes in a paragraph already seen is re-queued directly. Hidden/never-reached
+  paragraphs cost nothing. Verified in headless Chrome driven over the DevTools protocol (real scrolling; virtual-time headless does not fire
+  IntersectionObserver after scroll): 60-paragraph page → 10 sent at the top, 47 after 6 screens, 60 at the bottom, none twice; jumping straight to the
+  bottom skips the paragraphs in between.
 - **Article only:** if the page has `article, main, [role=main]` only text inside it; always skipped: `nav, aside, footer, button, label`, page `header`, ARIA chrome roles,
   `aria-hidden`, icon fonts, code/pre/form fields/editable areas, blocks with fewer than 3 words. Blocks found by computed `display`; inline links/bold stay in the block text.
 - Text nodes are replaced by `<span class="reden-w">` with `<b class="reden-b">` / `<span class="reden-f">` pieces; originals kept in a `WeakMap` and restored on off (batched ~12 ms).
@@ -124,7 +141,7 @@ Firefox: `about:debugging#/runtime/this-firefox` → Load Temporary Add-on → `
 - spaCy gotcha: `token.head is token` is never true (new Python object per access); compare `token.head.i == token.i`.
 - **Icon-font check uses only the FIRST font** (`core.isIconFont`). Bootstrap's default stack ends with `"Segoe UI Symbol"`, so testing the whole list made REden
   skip every paragraph on Bootstrap sites (found on https://rajagopalvenkat.com/teaching/resources/algo/ch6.html, fixed and verified there in headless Chrome).
-- Verified: JS unit tests (25), Indent style end to end against the real server (text preserved across two text nodes), tree style end to end against the real server (core.js + `/get_sentence_depth` + `/get_word_highlight`), backend `tests.test_rating` + `test_roles` + `test_layout`, and every server.py endpoint the extension calls (`/health`, `/sentences`, `/word`,
+- Verified: JS unit tests (28), Indent style end to end against the real server (text preserved across two text nodes), tree style end to end against the real server (core.js + `/get_sentence_depth` + `/get_word_highlight`), backend `tests.test_rating` + `test_roles` + `test_layout`, and every server.py endpoint the extension calls (`/health`, `/sentences`, `/word`,
   `/page` POST+GET, `/get_sentence_rating`, `/get_word_highlight`) with curl against the real server.
 - **Not yet verified in a real loaded extension** after the restore (popup + content script merge). The restored popup code is the committed original apart from the
   language removal and the backend address.

@@ -61,6 +61,11 @@
     return Math.min(1, Math.ceil(hi * 100) / 100);
   }
 
+  // Built-in values the user can't change (2026-11-14: the Bold amount / Bold intensity and Faintest words controls were removed).
+  // Applied over anything stored earlier, so old saved values no longer matter.
+  const FIXED = { bionicStrength: 40, dimMin: 60 }; // 40 = exactly the letters the backend chose; 60 % = min_dim_thres
+  const withFixed = (settings) => ({ ...settings, ...FIXED });
+
   // Starting points for experimentation, not validated optimal settings.
   const PRESETS = { low: 25, medium: 40, high: 55 };
 
@@ -290,28 +295,60 @@
     return out;
   }
 
-  // ---------- vocabulary test: binary search over the word-frequency list ----------
-  // Start in the middle (50 %). "I know it" -> the level is at least there (search the rarer half);
-  // "I don't" -> the level is below (search the more common half). 10 answers narrow ~93 000 words to ~90.
+  // ---------- vocabulary test: Bayesian adaptive test over the word-frequency list ----------
+  // The user's level = how far down the frequency list (most common first) they still know words.
+  // Instead of cutting the range in half (binary search: one slip loses the true level for good), keep a probability for
+  // every possible level (VOCAB_GRID points, log-spaced) and update all of them after each answer with a forgiving model:
+  //   P("I know it" | level g, word at index i) = slip + (1 - 2·slip) · logistic((log g − log i) / spread)
+  // so a single wrong answer only shifts the estimate. Each question is asked at the current median (the most uncertain
+  // point; the first one is the middle of the list). The estimate is the median, and vocabRange gives a likely range.
+  // Simulated with a reader who slips 5 % of the time: off by more than 2x in 3 % of tests (binary search: 15 %).
   const VOCAB_QUESTIONS = 10;
+  const VOCAB_GRID = 400;
+  const VOCAB_SLIP = 0.05;    // chance any single answer is a mistake
+  const VOCAB_SPREAD = 0.3;   // how gradually knowing turns into not knowing around the level (log-rank units)
+  const vlog = (i) => Math.log(Math.max(0, i) + 50);
+
   function vocabStart(total) {
-    return { lo: 0, hi: Math.max(1, Math.floor(Number(total) || 0)), asked: 0, answers: [] };
+    const n = Math.max(2, Math.floor(Number(total) || 0));
+    const a = vlog(0), b = vlog(n - 1);
+    const grid = [];
+    for (let k = 0; k < VOCAB_GRID; k++) grid.push(Math.min(n - 1, Math.max(0, Math.round(Math.exp(a + (k / (VOCAB_GRID - 1)) * (b - a)) - 50))));
+    // flat prior over log level, then "I know half the list?" is the natural first question
+    return withRange({ total: n, grid, post: grid.map(() => 1 / VOCAB_GRID), asked: 0, answers: [] });
   }
-  function vocabNextIndex(q) {
-    return Math.floor((q.lo + q.hi) / 2);
+
+  function quantile(q, p) {
+    let c = 0;
+    for (let k = 0; k < q.grid.length; k++) {
+      c += q.post[k];
+      if (c >= p) return q.grid[k];
+    }
+    return q.grid[q.grid.length - 1];
   }
-  // shownIndex = the index of the word actually shown (the backend may skip ahead past names and inflected forms).
+  // lo / hi = the likely range (5th–95th percentile); the popup sends them so the random quiz word stays inside it.
+  function withRange(q) {
+    return { ...q, lo: quantile(q, 0.05), hi: quantile(q, 0.95) };
+  }
+
+  const vocabNextIndex = (q) => (q.asked === 0 ? Math.floor(q.total / 2) : quantile(q, 0.5));
+
+  // shownIndex = the index of the word actually shown (the backend picks a random suitable word near the asked index).
   function vocabAnswer(q, shownIndex, known) {
-    const i = Math.min(q.hi, Math.max(q.lo, Math.floor(Number(shownIndex))));
-    return {
-      lo: known ? Math.max(q.lo, i) : q.lo,
-      hi: known ? q.hi : Math.min(q.hi, i),
-      asked: q.asked + 1,
-      answers: q.answers.concat([[i, !!known]]),
-    };
+    const i = Math.min(q.total - 1, Math.max(0, Math.floor(Number(shownIndex))));
+    const li = vlog(i);
+    let post = q.post.map((w, k) => {
+      const p = VOCAB_SLIP + (1 - 2 * VOCAB_SLIP) / (1 + Math.exp((li - vlog(q.grid[k])) / VOCAB_SPREAD));
+      return w * (known ? p : 1 - p);
+    });
+    const z = post.reduce((s, w) => s + w, 0) || 1;
+    post = post.map((w) => w / z);
+    return withRange({ ...q, post, asked: q.asked + 1, answers: q.answers.concat([[i, !!known]]) });
   }
-  const vocabDone = (q) => q.asked >= VOCAB_QUESTIONS || q.hi - q.lo <= 1;
-  const vocabEstimate = (q) => Math.floor((q.lo + q.hi) / 2);
+  const vocabDone = (q) => q.asked >= VOCAB_QUESTIONS;
+  const vocabEstimate = (q) => quantile(q, 0.5);
+  // A likely range for the result: [10th, 90th percentile] of the level (in simulation the true level is inside it ~80 % of the time).
+  const vocabRange = (q) => [quantile(q, 0.1), quantile(q, 0.9)];
 
   // Split `text` (which starts at `offset` inside the flags array) into runs of equal flag: [{text, tier}].
   function segmentsFromFlags(text, flags, offset) {
@@ -354,7 +391,7 @@
     return { ok: true };
   }
 
-  const api = { DEFAULTS, PRESETS, FONT_STACKS, contrastColor, SKIP_SELECTOR, SCOPE_SELECTOR, ICON_FONT_RE, isIconFont, sentencesOf, wordsOf, FADED, buildFlags, treeFlags, treeFlag, layoutBreaks, splitPiece, VOCAB_QUESTIONS, vocabStart, vocabNextIndex, vocabAnswer, vocabDone, vocabEstimate, dimFor, TREE_STEP, DIM_MIN_RANGE, AA_CONTRAST, parseRgb, contrastRatio, minOpacityForContrast, segmentsFromFlags, WORD_RE, LETTER_RE, clampPct, boldCount, splitWord, segments, collectWords, checkUrl };
+  const api = { DEFAULTS, FIXED, withFixed, PRESETS, FONT_STACKS, contrastColor, SKIP_SELECTOR, SCOPE_SELECTOR, ICON_FONT_RE, isIconFont, sentencesOf, wordsOf, FADED, buildFlags, treeFlags, treeFlag, layoutBreaks, splitPiece, VOCAB_QUESTIONS, vocabStart, vocabNextIndex, vocabAnswer, vocabDone, vocabEstimate, vocabRange, dimFor, TREE_STEP, DIM_MIN_RANGE, AA_CONTRAST, parseRgb, contrastRatio, minOpacityForContrast, segmentsFromFlags, WORD_RE, LETTER_RE, clampPct, boldCount, splitWord, segments, collectWords, checkUrl };
   root.REdenCore = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

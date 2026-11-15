@@ -49,6 +49,11 @@
   let observer = null;
   let queue = [];              // block elements waiting to be sent
   let queued = new WeakSet();
+  // Lazy: a paragraph is only sent to the backend once it comes near the screen (saves backend work and translation tokens).
+  const VISIBLE_MARGIN = "300px 0px"; // start a little before it scrolls into view, so it's ready when the reader gets there
+  let visObserver = null;      // IntersectionObserver watching paragraphs that haven't been on screen yet
+  let watched = new WeakSet(); // paragraphs being watched
+  let seen = new WeakSet();    // paragraphs that have been near the screen at least once (later changes are queued directly)
   let workers = 0;             // block workers running
   let inflight = 0;            // backend requests open
   let waiting = [];            // requests waiting for a free slot
@@ -236,7 +241,24 @@
   }
 
   function enqueueText(node) {
-    if (core.LETTER_RE.test(node.nodeValue) && usable(node)) queueBlock(blockOf(node.parentElement));
+    if (core.LETTER_RE.test(node.nodeValue) && usable(node)) watchBlock(blockOf(node.parentElement));
+  }
+
+  // Queue the paragraph now if it has already been near the screen, otherwise wait until it is.
+  function watchBlock(block) {
+    if (seen.has(block) || !visObserver) return queueBlock(block);
+    if (watched.has(block)) return;
+    watched.add(block);
+    visObserver.observe(block);
+  }
+  function onVisible(entries) {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      visObserver.unobserve(e.target);
+      watched.delete(e.target);
+      seen.add(e.target);
+      queueBlock(e.target);
+    }
   }
 
   function enqueueTree(root) {
@@ -542,6 +564,9 @@
     appliedDim = settings.dimMin;
     appliedVocab = vocabKey();
     applyZoom();
+    visObserver = typeof IntersectionObserver === "function"
+      ? new IntersectionObserver(onVisible, { rootMargin: VISIBLE_MARGIN })
+      : null; // very old browsers: format everything at once, as before
     observer = new MutationObserver(onMutations);
     observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
     if (document.body) enqueueTree(document.body);
@@ -552,6 +577,9 @@
     gen++;
     phase = nextPhase;
     if (observer) { observer.disconnect(); observer = null; }
+    if (visObserver) { visObserver.disconnect(); visObserver = null; }
+    watched = new WeakSet();
+    seen = new WeakSet();
     queue = [];
     queued = new WeakSet();
     workers = 0;
@@ -641,6 +669,7 @@
     if (area !== "local") return;
     let touched = false;
     for (const key of Object.keys(core.DEFAULTS)) {
+      if (key in core.FIXED) continue; // built in, not a user setting
       if (key in changes) {
         settings[key] = changes[key].newValue === undefined ? core.DEFAULTS[key] : changes[key].newValue;
         touched = true;
@@ -659,7 +688,7 @@
   });
 
   api.storage.local.get(Object.keys(core.DEFAULTS)).then((stored) => {
-    settings = { ...core.DEFAULTS, ...stored };
+    settings = core.withFixed({ ...core.DEFAULTS, ...stored });
     reconcile();
   });
 })();

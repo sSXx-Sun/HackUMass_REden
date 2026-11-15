@@ -52,14 +52,6 @@
       <p class="help seg-help">Weight: important words get heavier bold. Tree: the deeper a word sits in the sentence's grammar tree, the lighter it is. Indent: sentences of more than 8 words get one line per clause, with each clause that modifies another indented one step.</p>
 
       <fieldset class="seg">
-        <legend>Bold intensity</legend>
-        <input type="radio" name="preset" id="pr-low" value="25"><label for="pr-low">Low</label>
-        <input type="radio" name="preset" id="pr-medium" value="40"><label for="pr-medium">Medium</label>
-        <input type="radio" name="preset" id="pr-high" value="55"><label for="pr-high">High</label>
-      </fieldset>
-      <p class="help seg-help">Starting points, not proven best for everyone. Fine-tune on Read.</p>
-
-      <fieldset class="seg">
         <legend>Page text style</legend>
         <input type="radio" name="mode" id="md-original" value="original"><label for="md-original">Original</label>
         <input type="radio" name="mode" id="md-rounded" value="rounded"><label for="md-rounded">Rounded</label>
@@ -70,7 +62,7 @@
       <p class="page-ref" id="page-title">Loading…</p>
 
       <ul class="nav-list">
-        <li><button type="button" class="nav-row" data-goto="read"><b>Read</b><span>Set how much of each word is bold</span></button></li>
+        <li><button type="button" class="nav-row" data-goto="read"><b>Read</b><span>Font size, spacing, vocabulary and more</span></button></li>
       </ul>
     </section>
 
@@ -86,15 +78,6 @@
 
       <p id="preview" class="preview" aria-label="Live preview of your settings"></p>
 
-      <div class="field">
-        <label for="bio-strength"><span>Bold amount</span> <output id="bio-strength-out" for="bio-strength">50%</output></label>
-        <input type="range" id="bio-strength" min="20" max="80" step="5">
-      </div>
-      <div class="field">
-        <label for="bio-dim"><span>Faintest words (Sentence tree)</span> <output id="bio-dim-out" for="bio-dim">60%</output></label>
-        <input type="range" id="bio-dim" min="50" max="90" step="5" aria-describedby="dim-help">
-        <p id="dim-help" class="help">min_dim_thres: deep words never get lighter than this. REden also keeps every faded word at a contrast of at least 4.5:1 with the page background (WCAG AA), so on pale or grey text it stays darker.</p>
-      </div>
       <div class="field">
         <label for="bio-size"><span>Font size</span> <output id="bio-size-out" for="bio-size">100%</output></label>
         <input type="range" id="bio-size" min="100" max="200" step="10">
