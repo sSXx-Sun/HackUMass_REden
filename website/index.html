@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>REden — Find the core. Follow the meaning.</title>
+<meta name="description" content="REden is a pre-launch browser extension that helps you focus on the words carrying a sentence's meaning, while keeping the full text in place.">
+<link rel="icon" href="assets/icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body id="top">
+<a class="skip" href="#how" data-i18n="skip">Skip to the demonstration</a>
+
+<div class="page">
+  <!-- Top strip -->
+  <div class="strip">
+    <p class="dateline"><span data-i18n="edition">Pre-launch edition</span> <span class="sep" aria-hidden="true">·</span> <time id="today"></time></p>
+    <div class="lang" role="group" aria-labelledby="lang-label">
+      <span id="lang-label" class="label" data-i18n="langLabel">Language</span>
+      <div class="lang-btns">
+        <button type="button" lang="en" data-lang="en" aria-pressed="true">English</button>
+        <button type="button" lang="zh" data-lang="zh" aria-pressed="false">中文</button>
+        <button type="button" lang="es" data-lang="es" aria-pressed="false">Español</button>
+        <button type="button" lang="fr" data-lang="fr" aria-pressed="false">Français</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Masthead -->
+  <header class="masthead">
+    <a class="logo" href="#top" aria-label="REden">
+      <span class="logo-mark"><span class="mark" aria-hidden="true"></span><span class="bar" aria-hidden="true"></span></span>
+      <span class="word" aria-hidden="true"><b>RE</b>den</span>
+    </a>
+    <p class="tagline" data-i18n="tagline">Reading, brought into focus</p>
+  </header>
+  <nav class="nav" aria-label="Sections">
+    <ul>
+      <li><a href="#how" data-i18n="nav1">How it works</a></li>
+      <li><a href="#fits" data-i18n="nav2">Fits the page</a></li>
+      <li><a href="#dev" data-i18n="nav3">In development</a></li>
+      <li><a href="#future" data-i18n="nav4">Future direction</a></li>
+      <li><a href="#join" data-i18n="nav5">Waitlist</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero" aria-labelledby="h1">
+      <h1 id="h1"><span data-i18n="h1a">Find the core.</span> <span data-i18n="h1b">Follow the meaning.</span></h1>
+      <div class="hero-cols">
+        <p class="lede" data-i18n="intro">REden helps you focus on the words that carry a sentence’s meaning. By bringing its essential structure into view or gently softening less important words, it is designed to support faster reading and clearer understanding—while keeping the full text in place.</p>
+        <div class="hero-side">
+          <div class="actions">
+            <a class="btn primary" href="#join" data-i18n="cta1">Join the waitlist</a>
+            <a class="btn" href="#how" data-i18n="cta2">See how it works</a>
+          </div>
+          <p class="status"><span class="label" data-i18n="statusLabel">Status</span> <span data-i18n="status">Pre-launch. REden is not available to download yet.</span></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Demonstration -->
+    <section class="section demo" id="how" aria-labelledby="demo-h">
+      <div class="section-head">
+        <p class="label" data-i18n="demoLabel">The demonstration</p>
+        <h2 id="demo-h" data-i18n="demoTitle">One sentence, two reading modes</h2>
+      </div>
+
+      <div class="demo-grid">
+        <div class="demo-main">
+          <fieldset class="modes">
+            <legend class="sr" data-i18n="modeLegend">Reading mode</legend>
+            <label class="mode">
+              <input type="radio" name="mode" value="original">
+              <span class="mode-name" data-i18n="mOrig">Original</span>
+              <span class="mode-alt" data-alt="orig"></span>
+            </label>
+            <label class="mode">
+              <input type="radio" name="mode" value="structure" checked>
+              <span class="mode-name" data-i18n="mStruct">Sentence Structure</span>
+              <span class="mode-alt" lang="zh" data-alt="struct"></span>
+            </label>
+            <label class="mode">
+              <input type="radio" name="mode" value="fade">
+              <span class="mode-name" data-i18n="mFade">Importance Fade</span>
+              <span class="mode-alt" lang="zh" data-alt="fade"></span>
+            </label>
+          </fieldset>
+
+          <div class="stage" id="stage" lang="en">
+            <p class="sentence" id="sentence"></p>
+          </div>
+          <p class="sr" id="sentence-sr" aria-live="polite"></p>
+
+          <div class="controls">
+            <label class="strength">
+              <span class="label" data-i18n="strength">Emphasis strength</span>
+              <input type="range" id="strength" min="0" max="100" value="70" aria-describedby="strength-hint">
+              <output id="strength-out" for="strength">70%</output>
+            </label>
+            <p class="hint" id="strength-hint" data-i18n="strengthHint">Words are never hidden. Even the lightest tone stays readable.</p>
+          </div>
+
+          <div class="legend" id="legend" aria-hidden="true"></div>
+        </div>
+
+        <aside class="demo-side">
+          <h3 id="mode-title"></h3>
+          <p id="mode-copy"></p>
+          <p class="notice"><span class="label" data-i18n="noteLabel">Note</span> <span data-i18n="notice">Illustrative demonstration. This sentence is marked up by hand; it is not live language analysis.</span></p>
+        </aside>
+      </div>
+
+      <div class="compare">
+        <h3 class="label" data-i18n="compare">Side by side</h3>
+        <div class="compare-grid" lang="en">
+          <figure><p class="sentence small" data-cmp="original"></p><figcaption class="label" data-i18n="mOrig">Original</figcaption></figure>
+          <figure><p class="sentence small" data-cmp="structure"></p><figcaption class="label" data-i18n="mStruct">Sentence Structure</figcaption></figure>
+          <figure><p class="sentence small" data-cmp="fade"></p><figcaption class="label" data-i18n="mFade">Importance Fade</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- Fits the page -->
+    <section class="section fits" id="fits" aria-labelledby="fits-h">
+      <div class="section-head">
+        <p class="label" data-i18n="fitsLabel">Designed to fit the page</p>
+        <h2 id="fits-h" data-i18n="fitsTitle">Different pages. A familiar reading experience.</h2>
+      </div>
+      <div class="fits-grid">
+        <div class="fits-text">
+          <p class="big-first" data-i18n="fitsBody">REden’s themes can adapt to the background of the website you’re reading.</p>
+          <p class="hint" data-i18n="fitsNote">Illustrative: the same emphasis shown on a light and a dark surface. This site itself stays monochrome.</p>
+        </div>
+        <figure class="surface light" lang="en">
+          <figcaption class="label" data-i18n="light">Light page</figcaption>
+          <p class="sentence small" data-surface="light"></p>
+        </figure>
+        <figure class="surface dark" lang="en">
+          <figcaption class="label" data-i18n="dark">Dark page</figcaption>
+          <p class="sentence small" data-surface="dark"></p>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Development / Future -->
+    <div class="two-up">
+      <section class="section col" id="dev" aria-labelledby="dev-h">
+        <p class="tag" data-i18n="devLabel">In development</p>
+        <h2 id="dev-h" data-i18n="devTitle">Emphasis that learns what’s familiar to you.</h2>
+        <p data-i18n="devBody">We’re developing a personal word-frequency system to help tailor bolding to each reader. The goal is to adjust emphasis around the words you encounter often and those that may need more attention.</p>
+      </section>
+      <section class="section col" id="future" aria-labelledby="fut-h">
+        <p class="tag outline" data-i18n="futLabel">Future direction</p>
+        <h2 id="fut-h" data-i18n="futTitle">More languages. More ways to understand.</h2>
+        <p data-i18n="futBody">Our long-term goal is to bring REden to more languages, with reading support that respects their different structures. We also want to explore how personalized emphasis can help people studying another language.</p>
+        <p class="hint" data-i18n="futNote">Languages build sentences differently, so subject–verb–object will not apply the same way everywhere.</p>
+      </section>
+    </div>
+
+    <!-- Waitlist -->
+    <section class="section join" id="join" aria-labelledby="join-h">
+      <div class="join-grid">
+        <div>
+          <p class="label" data-i18n="joinLabel">The waitlist</p>
+          <h2 id="join-h" data-i18n="joinTitle">Be the first to read the next edition.</h2>
+          <p data-i18n="joinBody">REden is pre-launch. Add your email to join the waitlist.</p>
+        </div>
+        <form id="wl" novalidate>
+          <label for="email" class="label" data-i18n="emailLabel">Email address</label>
+          <div class="row">
+            <input id="email" type="email" autocomplete="email" inputmode="email" required aria-describedby="wl-proto wl-msg" placeholder="name@example.com">
+            <button class="btn primary" type="submit" data-i18n="cta1">Join the waitlist</button>
+          </div>
+          <p class="proto" id="wl-proto"><span class="label" data-i18n="protoLabel">Prototype</span> <span data-i18n="proto">This form is not connected to a waitlist service yet. Nothing you enter is sent or saved.</span></p>
+          <p class="msg" id="wl-msg" role="status"></p>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p class="foot-logo"><b>RE</b>den</p>
+    <p data-i18n="footer">Pre-launch prototype site. The demonstrations on this page are illustrative.</p>
+    <p><a href="#top" data-i18n="top">Back to top</a></p>
+  </footer>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
