@@ -7,6 +7,8 @@ dependencies = [
     "en-core-web-trf",
     "flask==3.1.2",
     "flask-cors==5.0.0",
+    "google-genai==3.3.0",
+    "python-dotenv==1.2.4",
     "spacy==3.8.18",
     "wordfreq==3.1.1",
 ]

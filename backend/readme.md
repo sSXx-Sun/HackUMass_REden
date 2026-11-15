@@ -50,6 +50,8 @@ Try `python -m sentence.rating`; tests `python -m unittest tests.test_rating -v`
 - `GET /vocab/word?index=N` → `{"index", "word", "zipf"}` — a quiz word at or just after N (names, international words and inflected forms are skipped).
 - `GET /vocab/threshold?index=N` → `{"index", "zipf"}` — the user's level as a word frequency.
 - `POST /vocab/unknown` `{"words": [...], "zipf": 3.6}` → `{"unknown": [true/false, ...]}` — rarer than the level (names/international words never count).
-- `POST /translate` `{"word", "sentence"}` → `{"word", "translation": null}` — **placeholder, not implemented yet.** When it returns a string, the extension
-  shows it in brackets after the word.
+- `POST /translate` `{"word", "context" | "sentence", "to_language"?}` → `{"word", "translation"}` — Gemini (`google-genai`), meaning chosen from the
+  context sentence, default language Simplified Chinese. Needs `GEMINI_API_KEY` in `backend/.env` (git-ignored); model `GEMINI_MODEL` (default
+  `gemini-3.5-flash-lite`, the bigger flash models timed out on 2026-11-14). 15 s limit, no retries, results cached in memory. Any failure →
+  `translation: null` + `error`, and the extension simply shows nothing. The extension shows a string in brackets after the word.
 Tests: `python -m unittest tests.test_vocab -v`.

@@ -1,5 +1,12 @@
 from flask import Flask, jsonify, request
 
+import os
+import threading
+from functools import lru_cache
+from dotenv import load_dotenv
+from google import genai
+from google.genai import types
+
 from sentence.sentence import SentenceAnalyzer
 from sentence.roles import get_sentence_roles
 from sentence.layout import get_sentence_layout
@@ -8,6 +15,8 @@ from sentence.depth import get_sentence_depth
 from vocab import vocab
 from word.word import WordAnalyzer, analyze_word
 
+
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))  # backend/.env -> GEMINI_API_KEY
 
 app = Flask(__name__)
 analyzer = SentenceAnalyzer()  # 模型懒加载，第一次请求时才 load，之后复用
@@ -153,11 +162,60 @@ def vocab_unknown():
     return jsonify(unknown=vocab.unknown(words[:5000], data.get("zipf", 0)))
 
 
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")  # override in backend/.env if Google retires it
+GEMINI_TIMEOUT_MS = 15000
+TRANSLATE_PROMPT = (
+    "You are a dictionary for language learners. Translate the given English word "
+    "into {lang}, choosing the meaning that fits the context sentence. "
+    "Reply with only the translation, 1-4 words, no punctuation, no explanation."
+)
+_gemini = None
+_gemini_lock = threading.Lock()
+
+
+def gemini_client():
+    """Made on first use, so the server still starts without a key (translate then returns null)."""
+    global _gemini
+    with _gemini_lock:
+        if _gemini is None:
+            _gemini = genai.Client(  # reads GEMINI_API_KEY
+                http_options=types.HttpOptions(
+                    timeout=GEMINI_TIMEOUT_MS,
+                    retry_options=types.HttpRetryOptions(attempts=1),  # no retries: the extension waits at most 30 s
+                )
+            )
+        return _gemini
+
+
+@lru_cache(maxsize=5000)  # same word + sentence + language -> asked only once
+def gemini_translate(word, context, lang):
+    resp = gemini_client().models.generate_content(
+        model=GEMINI_MODEL,
+        contents=f"Word: {word}\nContext: {context}",
+        config=types.GenerateContentConfig(
+            system_instruction=TRANSLATE_PROMPT.format(lang=lang),
+            temperature=0,
+            max_output_tokens=512,  # thinking tokens count here too
+            thinking_config=types.ThinkingConfig(thinking_level="low"),  # lowest level this model accepts; keeps a word lookup fast
+        ),
+    )
+    return (resp.text or "").strip() or None
+
+
 @app.post("/translate")
 def translate():
-    """Placeholder: {"word": "...", "sentence": "...", "to": "zh"} -> {"word", "translation": null}. Not implemented yet."""
+    """{"word", "context" | "sentence", "to_language"} -> {"word", "translation"}; translation is null on any failure."""
     data = request.get_json(silent=True) or {}
-    return jsonify(word=str(data.get("word", ""))[:100], translation=None)
+    word = str(data.get("word", "")).strip()[:100]
+    context = str(data.get("context") or data.get("sentence") or "")[:1000]
+    lang = str(data.get("to_language") or "Simplified Chinese")[:40]
+    if not word:
+        return jsonify(error="word is required"), 400
+    try:
+        return jsonify(word=word, translation=gemini_translate(word, context, lang))
+    except Exception as e:  # no key, no network, rate limit, bad model name
+        app.logger.warning("translate failed for %r: %s", word, e)
+        return jsonify(word=word, translation=None, error=str(e)[:300])
 
 
 # ---------- used by the popup (moved here from the old app.py) ----------
