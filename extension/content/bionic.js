@@ -175,10 +175,13 @@
     return out.sort((a, b) => a.offset - b.offset);
   }
 
+  const nativeLang = () => String(settings.nativeLang || "").trim() || core.DEFAULTS.nativeLang;
+
   function translateWord(word, sentence) {
-    const key = word.toLowerCase();
+    const lang = nativeLang();
+    const key = lang.toLowerCase() + "|" + word.toLowerCase(); // a new language means new translations
     if (!translationCache.has(key)) {
-      translationCache.set(key, ask({ type: "reden:translate", word, sentence }).then((r) => (r && r.ok ? r.data : null)));
+      translationCache.set(key, ask({ type: "reden:translate", word, sentence, lang }).then((r) => (r && r.ok ? r.data : null)));
     }
     return translationCache.get(key);
   }
@@ -493,6 +496,8 @@
     g.style.setProperty("font-weight", "400", "important");
     g.style.setProperty("font-size", "0.85em", "important");
     g.style.setProperty("opacity", "1", "important");
+    g.style.setProperty("unicode-bidi", "isolate", "important"); // Arabic / Hebrew translations don't reorder the English around them
+    g.dir = "auto";
     g.textContent = " (" + text + ")";
     return g;
   }
@@ -641,7 +646,7 @@
     beginRestore();
   }
 
-  const vocabKey = () => (settings.vocabOn && settings.vocabZipf > 0 ? "on|" + settings.vocabZipf : "off");
+  const vocabKey = () => (settings.vocabOn && settings.vocabZipf > 0 ? "on|" + settings.vocabZipf + "|" + nativeLang().toLowerCase() : "off");
 
   function reconcile() {
     if (!settings.bionicOn) { if (phase !== "off") stop(); return; }

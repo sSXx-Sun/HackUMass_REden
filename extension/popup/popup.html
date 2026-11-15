@@ -129,12 +129,17 @@
         </div>
       </div>
       <button type="button" id="vocab-start" class="btn">Test my vocabulary</button>
+      <div class="field">
+        <label for="native-lang">Your mother language</label>
+        <input id="native-lang" type="text" maxlength="40" autocomplete="off" spellcheck="false" placeholder="Type your mother language here" aria-describedby="native-lang-help">
+        <p id="native-lang-help" class="help">Unknown words are translated into this language. Any language works, e.g. Chinese, Spanish, 日本語, Tiếng Việt.</p>
+      </div>
       <label class="switch">
         <input type="checkbox" role="switch" id="vocab-on" aria-describedby="vocab-on-help">
         <span class="track" aria-hidden="true"></span>
         <span class="switch-text">Translate words I may not know</span>
       </label>
-      <p id="vocab-on-help" class="help">Works while Bionic reading is on. Translation isn't connected yet, so no brackets appear for now.</p>
+      <p id="vocab-on-help" class="help">Works while Bionic reading is on. Translations come from the backend (it needs a Gemini key).</p>
 
       <h2 class="gap">Page words</h2>
       <p class="help">Collect every word on this page.</p>

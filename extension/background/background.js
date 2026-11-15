@@ -83,7 +83,8 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   // Translation of one word (placeholder on the backend: always null for now)
   if (msg.type === "reden:translate") {
-    request("/translate", { word: String(msg.word || ""), sentence: String(msg.sentence || "") }, 30000).then(
+    const toLanguage = String(msg.lang || "").trim().slice(0, 40) || "Chinese"; // the user's mother language from the popup
+    request("/translate", { word: String(msg.word || ""), sentence: String(msg.sentence || ""), to_language: toLanguage }, 30000).then(
       (d) => sendResponse(d && "translation" in d ? { ok: true, data: typeof d.translation === "string" ? d.translation : null } : { ok: false, error: "bad response" }),
       (e) => sendResponse({ ok: false, error: String(e) })
     );

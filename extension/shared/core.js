@@ -17,6 +17,7 @@
     dimMin: 60,             // "tree" style: min_dim_thres, the faintest a word can get (opacity %, 50-90)
     vocabOn: false,         // add a translation in brackets after words rarer than the user's level
     vocabZipf: 0,           // the user's level as a word frequency (wordfreq zipf); 0 = not tested yet
+    nativeLang: "Chinese",  // language unknown words are translated into (free text, sent to the backend as to_language)
   };
 
   // "tree" style: each level deeper in the sentence tree loses this much opacity, down to dimMin.

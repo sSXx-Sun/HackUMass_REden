@@ -550,6 +550,21 @@ function initVocab() {
   yes.addEventListener("click", () => answer(true));
   no.addEventListener("click", () => answer(false));
 
+  // Mother language: saved shortly after typing stops; empty goes back to the default (Chinese).
+  const langBox = $("native-lang");
+  langBox.value = saved.nativeLang || core.DEFAULTS.nativeLang;
+  const saveLang = debounce(() => {
+    const v = langBox.value.trim().slice(0, 40) || core.DEFAULTS.nativeLang;
+    if (v === saved.nativeLang) return;
+    saved.nativeLang = v;
+    storageSet({ nativeLang: v });
+  }, 500);
+  langBox.addEventListener("input", saveLang);
+  langBox.addEventListener("change", () => {
+    if (!langBox.value.trim()) langBox.value = core.DEFAULTS.nativeLang;
+    saveLang();
+  });
+
   onBox.checked = !!saved.vocabOn;
   onBox.addEventListener("change", () => {
     if (onBox.checked && !(saved.vocabZipf > 0)) {

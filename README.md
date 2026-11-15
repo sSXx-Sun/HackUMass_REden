@@ -66,7 +66,8 @@ No build step: the `extension/` folder is the extension.
 3. Pick a **Reading style** on Home: *Weight* (heavier bold on key words), *Tree* (words deeper in the sentence's grammar are lighter)
    or *Indent* (sentences of more than 8 words get one line per clause).
 4. Optional: on the **Read** tab, take the 10-question **vocabulary test**, then turn on **Translate words I may not know**.
-   Words rarer than your level get a translation in brackets (needs the Gemini key).
+   Words rarer than your level get a translation in brackets (needs the Gemini key). Type your mother language in
+   **Your mother language** (default: Chinese); any language works, e.g. Spanish, 日本語, Tiếng Việt.
 
 Paragraphs are processed as they scroll into view. If the backend runs somewhere other than `http://127.0.0.1:5000`,
 set the address in **Settings > Backend**.

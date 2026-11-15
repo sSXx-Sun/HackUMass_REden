@@ -81,7 +81,10 @@ Firefox: `about:debugging#/runtime/this-firefox` → Load Temporary Add-on → `
   rubbed) and vowel-less abbreviations (hrs) when choosing the quiz word. **Random:** the word is picked at random among suitable words within ±15
   (`vocab.JITTER`) of the midpoint, kept inside the current search range (popup sends `&lo=&hi=`), so each test asks different words; the backend
   returns the index it actually used and the binary search continues from there. Place names like "peoria" can still appear (not filtered). Result saved as `vocabZipf` (threshold, core.DEFAULTS) + `vocabSize` (popup).
-  Switch "Translate words I may not know" (`vocabOn`, needs a test first). Content script (any style): lower-case letter words of the paragraph →
+  Switch "Translate words I may not know" (`vocabOn`, needs a test first). **Mother language** text field above it (key `nativeLang` in core.DEFAULTS,
+  default "Chinese", free text, saved 500 ms after typing; empty → Chinese) is sent as `to_language` to `/translate` (Gemini), so any language works;
+  the translation cache and `vocabKey` include it (changing it re-formats). Glosses get `dir=auto` + `unicode-bidi: isolate` for RTL languages.
+  Verified with the real backend + Gemini: intractable/dubious → (intratable)/(dudoso) for Spanish, (棘手的)/(可疑的) for Chinese. Content script (any style): lower-case letter words of the paragraph →
   `reden:vocab` (`/vocab/unknown`: zipf < threshold, not international) → `reden:translate` per unknown word (cached) → if a string comes back, insert
   `<span class="reden-gloss"> (translation)</span>` after the word (`core.splitPiece` gloss marks: after the word's last character). `/translate` returns null,
   (shows a bracket whenever Gemini returns a translation). Vocab failures are never fatal (no glosses). Changing vocabOn/vocabZipf restarts formatting.
