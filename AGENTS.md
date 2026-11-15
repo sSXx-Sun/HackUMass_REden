@@ -6,7 +6,7 @@ Browser extension (product name **REden**, as in the logo; internal ids like `RE
 ## Repo layout
 - `extension/` – the browser extension (Manifest V3). The user spells it "extention" but the folder is `extension`.
   - `manifest.json`, `shared/core.js` (pure logic, no DOM/APIs), `content/bionic.js`, `background/background.js`, `popup/` (one switch + status), `icons/`, `tests/core.test.js`, `readme.md`
-- `backend/` – **the extension's backend is `server.py`** (the user's choice; port 5000). `sentence/sentence.py` (spaCy ratings) and `word/word.py` (bold letters) are the logic.
+- `backend/` – **the extension's backend is `server.py`** (the user's choice; port 5001). `sentence/sentence.py` (spaCy ratings) and `word/word.py` (bold letters) are the logic.
   `app.py`, `bionic/`, `nlp.py`, `tests/test_bionic.py` are the old port-5050 API and are **no longer used by the extension** (not deleted; ask before removing).
 - `UI` – empty 0-byte file at the repo root. Ignore it.
 
@@ -15,7 +15,7 @@ Browser extension (product name **REden**, as in the logo; internal ids like `RE
 node --test extension/tests/core.test.js         # unit tests (folder form `node --test extension/tests` fails on Node 24)
 node --check extension/content/bionic.js         # quick syntax checks (same for popup/popup.js, background/background.js)
 
-cd backend && .venv/Scripts/python.exe server.py # Windows; http://127.0.0.1:5000, spaCy loads on first request (~30 s)
+cd backend && .venv/Scripts/python.exe server.py # Windows; http://127.0.0.1:5001, spaCy loads on first request (~30 s)
 ```
 Load the extension: `chrome://extensions` → Developer mode → Load unpacked → pick `extension/`. Reload it after code changes.
 
@@ -33,7 +33,7 @@ Load the extension: `chrome://extensions` → Developer mode → Load unpacked �
 - Popup: one switch (`bionicOn` in `storage.local`) + status line polled every 0.5 s. Dark mode follows the OS (`prefers-color-scheme`).
 
 ## How it works (content script)
-- Requests go content script → `runtime.sendMessage` → `background.js` (fixed `http://127.0.0.1:5000`; host permission bypasses CORS, server.py has no CORS) → server.py.
+- Requests go content script → `runtime.sendMessage` → `background.js` (fixed `http://127.0.0.1:5001`; host permission bypasses CORS, server.py has no CORS) → server.py.
   Messages: `reden:health`, `reden:sentence`, `reden:word`. Max 6 requests in flight, 3 paragraphs in parallel, `gen` counter drops late answers after turning off.
 - Article only: if the page has `article, main, [role=main]` only text inside it; skips `core.SKIP_SELECTOR` (nav, aside, footer, button, code, forms, ARIA chrome,
   aria-hidden), page `header`, icon fonts, blocks with < 3 words. Blocks found by computed `display`; inline links/bold stay in the block text.
@@ -43,7 +43,7 @@ Load the extension: `chrome://extensions` → Developer mode → Load unpacked �
   **Not yet verified in a real loaded extension.**
 
 ## Permissions (keep minimal)
-`storage`, `activeTab`, `scripting`; `host_permissions` only `http://127.0.0.1:5000/*`.
+`storage`, `activeTab`, `scripting`; `host_permissions` only `http://127.0.0.1:5001/*`.
 
 ## Cross-browser rules
 - `const api = globalThis.browser ?? globalThis.chrome`; call extension APIs without callbacks and treat the return as a promise (`call(() => api.x(...))`).

@@ -1,8 +1,8 @@
 // REden background worker. Web pages can't call the local backend directly (mixed content, CORS),
 // so the content script sends its requests here and this worker talks to the backend.
-// It only ever contacts the backend address saved in Settings (http://127.0.0.1:5000 = backend/server.py by default).
+// It only ever contacts the backend address saved in Settings (http://127.0.0.1:5001 = backend/server.py by default).
 const api = globalThis.browser ?? globalThis.chrome;
-const DEFAULT_URL = "http://127.0.0.1:5000";
+const DEFAULT_URL = "http://127.0.0.1:5001";
 const OLD_URL = "http://127.0.0.1:5050"; // old app.py address; everything is in server.py now
 
 async function backendUrl() {

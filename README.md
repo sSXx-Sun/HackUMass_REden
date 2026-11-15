@@ -32,7 +32,7 @@ pip install -r requirements.txt
 python server.py
 ```
 
-The server runs at **http://127.0.0.1:5000**. Check it in a browser: http://127.0.0.1:5000/health should show `{"status": "ok"}`.
+The server runs at **http://127.0.0.1:5001**. Check it in a browser: http://127.0.0.1:5001/health should show `{"status": "ok"}`.
 The first page you format takes a little longer (about 5–30 s) while spaCy loads its model; after that it's fast.
 
 **Translation (optional).** Translating unknown words uses Google Gemini. Create the file `backend/.env` (it is git-ignored):
@@ -69,7 +69,7 @@ No build step: the `extension/` folder is the extension.
    Words rarer than your level get a translation in brackets (needs the Gemini key). Type your mother language in
    **Your mother language** (default: Chinese); any language works, e.g. Spanish, 日本語, Tiếng Việt.
 
-Paragraphs are processed as they scroll into view. If the backend runs somewhere other than `http://127.0.0.1:5000`,
+Paragraphs are processed as they scroll into view. If the backend runs somewhere other than `http://127.0.0.1:5001`,
 set the address in **Settings > Backend**.
 
 After changing extension code, click the reload button on the REden card in `chrome://extensions` and reload the web page.

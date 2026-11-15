@@ -6,7 +6,7 @@ const tx = (key, vars) => globalThis.REdenStrings.t(key, vars); // from strings.
 const DEFAULTS = {
   activeTab: "home",
   dark: false, large: false, popupSize: 14, tintSite: true, vocabSize: 0, vocabLow: 0, vocabHigh: 0,
-  backendUrl: "http://127.0.0.1:5000", // backend/server.py
+  backendUrl: "http://127.0.0.1:5001", // backend/server.py
   pageDark: false,
   ...core.DEFAULTS,
 };

@@ -13,7 +13,7 @@ Python backend = `backend/server.py`. Built for HackUMass.
   - `popup/popup.html|css|js` – the popup UI (one page, three sections: Home, Read, Settings); `popup/strings.js` – all popup text (English only)
   - `icons/` – generated PNG toolbar icons
   - `tests/core.test.js`, `tests/strings.test.js` – unit tests
-- `backend/` – **the extension's backend is `server.py`** (the user's choice; port 5000). Everything the extension needs is there:
+- `backend/` – **the extension's backend is `server.py`** (the user's choice; port 5001). Everything the extension needs is there:
   - page bolding: `POST /get_sentence_rating` (`sentence/rating.py`, Claude's) + `POST /get_word_highlight` (`word/word.py`, teammates')
   - "Sentence tree" style: `POST /get_sentence_depth` (`sentence/depth.py`, Claude's): dependency-tree depth per item, root = 0
   - popup helpers (moved from the old `app.py`): `POST /sentences`, `POST /page`, `GET /page`; `POST /word` (`word.analyze_word` → `nlp.py`) is unused since the Words tab was removed
@@ -31,7 +31,7 @@ Python backend = `backend/server.py`. Built for HackUMass.
 node --test extension/tests/core.test.js extension/tests/strings.test.js   # unit tests (folder form `node --test extension/tests` fails on Node 24)
 node --check extension/popup/popup.js            # quick syntax checks (same for content/bionic.js, background/background.js)
 
-cd backend && venv/Scripts/python.exe server.py  # Windows; http://127.0.0.1:5000. Use `venv` (has google-genai + python-dotenv);
+cd backend && venv/Scripts/python.exe server.py  # Windows; http://127.0.0.1:5001. Use `venv` (has google-genai + python-dotenv);
                                                  # `.venv` lacks them (run `uv sync` to update it). spaCy loads on first request
 cd backend && .venv/Scripts/python.exe -m unittest tests.test_rating tests.test_depth tests.test_roles tests.test_layout -v   # loads the model, ~5 s
 cd backend && .venv/Scripts/python.exe -m unittest tests.test_vocab -v   # wordfreq only, ~1 s
@@ -102,7 +102,7 @@ Firefox: `about:debugging#/runtime/this-firefox` → Load Temporary Add-on → `
 - Rounded/Editorial set `font-family` only on the `.reden-w` spans REden creates, so they apply only while REden is on. High contrast sets the span color to black/white.
 - **Page words** (Read tab): on click, reads the tab's visible text, `core.collectWords` lists every word, logs it in the popup and page console, POSTs to `/page`.
 - **Sentence analysis** (Read tab): selected text → `POST /sentences` (spaCy sentence split).
-  The popup calls these directly with `fetch` to the Settings backend address (default `http://127.0.0.1:5000`; a saved old `:5050` is migrated on open).
+  The popup calls these directly with `fetch` to the Settings backend address (default `http://127.0.0.1:5001`; a saved old `:5050` is migrated on open).
 - Font size and line spacing apply only while Bionic reading is on. Font size uses CSS `zoom` on `<html>`. "Dark page" is a one-off `insertCSS`, not persisted.
 
 ## How the page formatting works (content script)
@@ -124,7 +124,7 @@ Firefox: `about:debugging#/runtime/this-firefox` → Load Temporary Add-on → `
 - **Backend down:** `reden:health` when turning on; any failed request mid-way → `goOffline()` (restore, phase `offline`). Opening the popup sends `reden:recheck`.
 
 ## Permissions (keep minimal)
-- `storage`, `activeTab`, `scripting`; `host_permissions` only `127.0.0.1:5000` and `localhost:5000`.
+- `storage`, `activeTab`, `scripting`; `host_permissions` only `127.0.0.1:5001` and `localhost:5001`.
 - `optional_host_permissions` `http://*/*`, `https://*/*` – requested **only** when the user turns on "Format every website automatically" (requested straight from the click).
   Automatic mode registers the content script (`reden-bionic`); turning it off unregisters it and removes the permission.
 

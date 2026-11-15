@@ -43,10 +43,10 @@ and restarting the browser.
 | `storage` | Remember your settings, notes and words. |
 | `activeTab` | When you click the REden icon, temporarily access **that tab only** so the switch can format it. No prompt, no access to other tabs. |
 | `scripting` | Inject the formatting script into the current tab, and register it for Automatic mode. |
-| `host_permissions`: `127.0.0.1:5000`, `localhost:5000` | Talk to the optional local Python backend. |
+| `host_permissions`: `127.0.0.1:5001`, `localhost:5001` | Talk to the optional local Python backend. |
 | `optional_host_permissions`: `http://*/*`, `https://*/*` | **Only requested when you turn on "Automatic on every website".** It lets the browser run the script on pages as they load. Turning Automatic off removes it again. |
 
-Article text is sent only to the backend address in Settings (`http://127.0.0.1:5000`, your own computer, by default), never anywhere else.
+Article text is sent only to the backend address in Settings (`http://127.0.0.1:5001`, your own computer, by default), never anywhere else.
 The background worker exists only to make those calls. There is no remote code.
 
 ## How the formatting is applied
@@ -80,7 +80,7 @@ node --test extension/tests
 10. **Theme:** Settings → Dark mode / Large text change the popup and persist.
 
 ## Backend (optional)
-See `../backend/readme.md`; then run `python server.py` (serves `http://127.0.0.1:5000`).
+See `../backend/readme.md`; then run `python server.py` (serves `http://127.0.0.1:5001`).
 
 ## Add a section
 In `popup/popup.html` add a radio `<input class="tab-radio" id="t-x">`, a `<label class="tab" for="t-x">` in the nav and a matching
