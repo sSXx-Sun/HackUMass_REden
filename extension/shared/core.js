@@ -97,6 +97,12 @@
   const SCOPE_SELECTOR = 'article, main, [role="main"]';
   // Icon fonts draw symbols from text ("star", "menu"); never touch those.
   const ICON_FONT_RE = /icon|symbol|glyph|awesome|material|dingbat|webdings/i;
+  // Only the FIRST font in a font-family list is the one actually used. Bootstrap's default stack ends with
+  // "Segoe UI Symbol" as an emoji fallback, so testing the whole list skipped every paragraph on those sites.
+  function isIconFont(fontFamily) {
+    const first = String(fontFamily || "").split(",")[0].replace(/["']/g, "").trim();
+    return ICON_FONT_RE.test(first);
+  }
 
   // Only scripts where "bold the first letters" makes sense. CJK, Thai, Arabic etc. are left alone.
   const L = "\\p{Script=Latin}\\p{Script=Cyrillic}\\p{Script=Greek}";
@@ -348,7 +354,7 @@
     return { ok: true };
   }
 
-  const api = { DEFAULTS, PRESETS, FONT_STACKS, contrastColor, SKIP_SELECTOR, SCOPE_SELECTOR, ICON_FONT_RE, sentencesOf, wordsOf, FADED, buildFlags, treeFlags, treeFlag, layoutBreaks, splitPiece, VOCAB_QUESTIONS, vocabStart, vocabNextIndex, vocabAnswer, vocabDone, vocabEstimate, dimFor, TREE_STEP, DIM_MIN_RANGE, AA_CONTRAST, parseRgb, contrastRatio, minOpacityForContrast, segmentsFromFlags, WORD_RE, LETTER_RE, clampPct, boldCount, splitWord, segments, collectWords, checkUrl };
+  const api = { DEFAULTS, PRESETS, FONT_STACKS, contrastColor, SKIP_SELECTOR, SCOPE_SELECTOR, ICON_FONT_RE, isIconFont, sentencesOf, wordsOf, FADED, buildFlags, treeFlags, treeFlag, layoutBreaks, splitPiece, VOCAB_QUESTIONS, vocabStart, vocabNextIndex, vocabAnswer, vocabDone, vocabEstimate, dimFor, TREE_STEP, DIM_MIN_RANGE, AA_CONTRAST, parseRgb, contrastRatio, minOpacityForContrast, segmentsFromFlags, WORD_RE, LETTER_RE, clampPct, boldCount, splitWord, segments, collectWords, checkUrl };
   root.REdenCore = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

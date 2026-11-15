@@ -233,4 +233,10 @@ test("page chrome is skipped and icon fonts are recognised", () => {
   assert.ok(core.ICON_FONT_RE.test('"Material Icons"'));
   assert.ok(core.ICON_FONT_RE.test("FontAwesome, sans-serif"));
   assert.ok(!core.ICON_FONT_RE.test("Georgia, serif"));
+  // only the first font counts: Bootstrap's stack ends with "Segoe UI Symbol" but is ordinary text
+  const bootstrap = 'Muli, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"';
+  assert.equal(core.isIconFont(bootstrap), false);
+  assert.equal(core.isIconFont('"Font Awesome 5 Free"'), true);
+  assert.equal(core.isIconFont('"Material Icons", sans-serif'), true);
+  assert.equal(core.isIconFont(""), false);
 });

@@ -186,7 +186,7 @@
   }
 
   function isIconFont(el) {
-    if (!fontCache.has(el)) fontCache.set(el, core.ICON_FONT_RE.test(getComputedStyle(el).fontFamily));
+    if (!fontCache.has(el)) fontCache.set(el, core.isIconFont(getComputedStyle(el).fontFamily));
     return fontCache.get(el);
   }
 

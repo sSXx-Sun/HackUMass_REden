@@ -122,6 +122,8 @@ Firefox: `about:debugging#/runtime/this-firefox` → Load Temporary Add-on → `
 
 ## Testing notes / status
 - spaCy gotcha: `token.head is token` is never true (new Python object per access); compare `token.head.i == token.i`.
+- **Icon-font check uses only the FIRST font** (`core.isIconFont`). Bootstrap's default stack ends with `"Segoe UI Symbol"`, so testing the whole list made REden
+  skip every paragraph on Bootstrap sites (found on https://rajagopalvenkat.com/teaching/resources/algo/ch6.html, fixed and verified there in headless Chrome).
 - Verified: JS unit tests (25), Indent style end to end against the real server (text preserved across two text nodes), tree style end to end against the real server (core.js + `/get_sentence_depth` + `/get_word_highlight`), backend `tests.test_rating` + `test_roles` + `test_layout`, and every server.py endpoint the extension calls (`/health`, `/sentences`, `/word`,
   `/page` POST+GET, `/get_sentence_rating`, `/get_word_highlight`) with curl against the real server.
 - **Not yet verified in a real loaded extension** after the restore (popup + content script merge). The restored popup code is the committed original apart from the
