@@ -4,188 +4,236 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>REden — Find the core. Follow the meaning.</title>
-<meta name="description" content="REden is a pre-launch browser extension that helps you focus on the words carrying a sentence's meaning, while keeping the full text in place.">
+<meta name="description" content="REden is a browser extension that helps you focus on the words carrying a sentence's meaning, while keeping the full text in place.">
 <link rel="icon" href="assets/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lobster+Two:ital,wght@0,400;0,700;1,400;1,700&family=Marcellus&family=ZCOOL+KuaiLe&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body id="top">
-<a class="skip" href="#how" data-i18n="skip">Skip to the demonstration</a>
+<a class="skip" href="#story" data-i18n="skip">Skip to the demonstration</a>
 
-<div class="page">
-  <!-- Top strip -->
-  <div class="strip">
-    <p class="dateline"><span data-i18n="edition">Pre-launch edition</span> <span class="sep" aria-hidden="true">·</span> <time id="today"></time></p>
-    <div class="lang" role="group" aria-labelledby="lang-label">
-      <span id="lang-label" class="label" data-i18n="langLabel">Language</span>
-      <div class="lang-btns">
-        <button type="button" lang="en" data-lang="en" aria-pressed="true">English</button>
-        <button type="button" lang="zh" data-lang="zh" aria-pressed="false">中文</button>
-        <button type="button" lang="es" data-lang="es" aria-pressed="false">Español</button>
-        <button type="button" lang="fr" data-lang="fr" aria-pressed="false">Français</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Masthead -->
-  <header class="masthead">
-    <a class="logo" href="#top" aria-label="REden">
-      <span class="logo-mark"><span class="mark" aria-hidden="true"></span><span class="bar" aria-hidden="true"></span></span>
-      <span class="word" aria-hidden="true"><b>RE</b>den</span>
-    </a>
-    <p class="tagline" data-i18n="tagline">Reading, brought into focus</p>
-  </header>
-  <nav class="nav" aria-label="Sections">
-    <ul>
-      <li><a href="#how" data-i18n="nav1">How it works</a></li>
-      <li><a href="#fits" data-i18n="nav2">Fits the page</a></li>
-      <li><a href="#dev" data-i18n="nav3">In development</a></li>
-      <li><a href="#future" data-i18n="nav4">Future direction</a></li>
-      <li><a href="#join" data-i18n="nav5">Waitlist</a></li>
-    </ul>
+<header class="bar">
+  <a class="logo-sm" href="#top" aria-label="REden">
+    <img src="assets/logo.png" width="128" height="128" alt="">
+    <span class="word-sm" aria-hidden="true"><b>RE</b>den</span>
+  </a>
+  <nav class="bar-nav" aria-label="Sections">
+    <a href="#story" data-i18n="nav1">How it works</a>
+    <a href="#adapt" data-i18n="nav2">Fits the page</a>
+    <a href="#dev" data-i18n="nav3">Reading emphasis</a>
+    <a href="#get" data-i18n="nav6">Download</a>
   </nav>
+  <div class="lang" role="group" aria-label="Language">
+    <button type="button" lang="en" data-lang="en" aria-label="English" aria-pressed="true">EN</button>
+    <button type="button" lang="zh" data-lang="zh" aria-label="中文" aria-pressed="false">中文</button>
+    <button type="button" lang="es" data-lang="es" aria-label="Español" aria-pressed="false">ES</button>
+    <button type="button" lang="fr" data-lang="fr" aria-label="Français" aria-pressed="false">FR</button>
+  </div>
+</header>
 
-  <main>
-    <!-- Hero -->
-    <section class="hero" aria-labelledby="h1">
+<main>
+  <!-- Hero -->
+  <section class="hero" aria-labelledby="h1">
+    <div class="wrap">
+      <div class="masthead">
+        <img class="logo-lg" src="assets/logo.png" width="128" height="128" alt="REden">
+        <p class="label dateline"><span data-i18n="edition">Reading edition</span> <span aria-hidden="true">·</span> <time id="today"></time></p>
+      </div>
       <h1 id="h1"><span data-i18n="h1a">Find the core.</span> <span data-i18n="h1b">Follow the meaning.</span></h1>
       <div class="hero-cols">
-        <p class="lede" data-i18n="intro">REden helps you focus on the words that carry a sentence’s meaning. By bringing its essential structure into view or gently softening less important words, it is designed to support faster reading and clearer understanding—while keeping the full text in place.</p>
+        <p class="lede" data-i18n="intro" data-fade>REden helps you focus on the words that carry a sentence’s meaning. By bringing its essential structure into view or gently softening less important words, it is designed to support faster reading and clearer understanding—while keeping the full text in place.</p>
         <div class="hero-side">
           <div class="actions">
             <a class="btn primary" href="#join" data-i18n="cta1">Join the waitlist</a>
-            <a class="btn" href="#how" data-i18n="cta2">See how it works</a>
+            <a class="btn" href="#story" data-i18n="cta2">See how it works</a>
           </div>
-          <p class="status"><span class="label" data-i18n="statusLabel">Status</span> <span data-i18n="status">Pre-launch. REden is not available to download yet.</span></p>
+          <p class="status"><span class="label" data-i18n="statusLabel">Status</span> <span data-i18n="status">Download the extension and backend below.</span></p>
         </div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- Demonstration -->
-    <section class="section demo" id="how" aria-labelledby="demo-h">
+  <!-- Staged demonstration -->
+  <section class="story" id="story" aria-labelledby="demo-h">
+    <div class="wrap">
       <div class="section-head">
         <p class="label" data-i18n="demoLabel">The demonstration</p>
-        <h2 id="demo-h" data-i18n="demoTitle">One sentence, two reading modes</h2>
+        <h2 id="demo-h" data-i18n="demoTitle">One sentence, four ways to read.</h2>
       </div>
 
-      <div class="demo-grid">
-        <div class="demo-main">
-          <fieldset class="modes">
-            <legend class="sr" data-i18n="modeLegend">Reading mode</legend>
-            <label class="mode">
-              <input type="radio" name="mode" value="original">
-              <span class="mode-name" data-i18n="mOrig">Original</span>
-              <span class="mode-alt" data-alt="orig"></span>
-            </label>
-            <label class="mode">
-              <input type="radio" name="mode" value="structure" checked>
-              <span class="mode-name" data-i18n="mStruct">Sentence Structure</span>
-              <span class="mode-alt" lang="zh" data-alt="struct"></span>
-            </label>
-            <label class="mode">
-              <input type="radio" name="mode" value="fade">
-              <span class="mode-name" data-i18n="mFade">Importance Fade</span>
-              <span class="mode-alt" lang="zh" data-alt="fade"></span>
-            </label>
-          </fieldset>
-
-          <div class="stage" id="stage" lang="en">
-            <p class="sentence" id="sentence"></p>
+      <div class="story-grid">
+        <div class="stage-col">
+          <div class="stage">
+            <p class="sentence" id="sentence" lang="en">After the rain stopped, the students carefully examined the old map in the library.</p>
+            <div class="legend" id="legend" aria-hidden="true"></div>
           </div>
           <p class="sr" id="sentence-sr" aria-live="polite"></p>
 
           <div class="controls">
-            <label class="strength">
-              <span class="label" data-i18n="strength">Emphasis strength</span>
-              <input type="range" id="strength" min="0" max="100" value="70" aria-describedby="strength-hint">
-              <output id="strength-out" for="strength">70%</output>
-            </label>
+            <fieldset class="seg" data-slide>
+              <legend class="sr" data-i18n="modeLegend">Reading mode</legend>
+              <label><input type="radio" name="mode" value="original"><span data-i18n="mOrig">Original</span></label>
+              <label><input type="radio" name="mode" value="structure"><span data-i18n="mStruct">Sentence Structure</span></label>
+              <label><input type="radio" name="mode" value="fade"><span data-i18n="mFade">Importance Fade</span></label>
+              <label><input type="radio" name="mode" value="tree"><span data-i18n="mTree">Sentence Tree</span></label>
+            </fieldset>
+            <div class="control-row">
+              <label class="strength">
+                <span class="label" data-i18n="strength">Emphasis strength</span>
+                <input type="range" id="strength" min="0" max="100" value="70" aria-describedby="strength-hint">
+                <output id="strength-out" for="strength">70%</output>
+              </label>
+              <label class="switch">
+                <input type="checkbox" id="words" role="switch">
+                <span class="track" aria-hidden="true"></span>
+                <span data-i18n="mWords">Word check</span>
+              </label>
+            </div>
             <p class="hint" id="strength-hint" data-i18n="strengthHint">Words are never hidden. Even the lightest tone stays readable.</p>
           </div>
-
-          <div class="legend" id="legend" aria-hidden="true"></div>
         </div>
 
-        <aside class="demo-side">
-          <h3 id="mode-title"></h3>
-          <p id="mode-copy"></p>
-          <p class="notice"><span class="label" data-i18n="noteLabel">Note</span> <span data-i18n="notice">Illustrative demonstration. This sentence is marked up by hand; it is not live language analysis.</span></p>
-        </aside>
+        <ol class="steps">
+          <li class="step" data-mode="original" data-words="0">
+            <p class="label">01 · <span data-i18n="mOrig">Original</span></p>
+            <h3><span class="u" data-i18n="origTitle">Start with the sentence as written.</span></h3>
+            <p class="copy" data-i18n="origCopy" data-fade>No emphasis at all.</p>
+            <p class="sentence step-sentence" data-render="original" lang="en">After the rain stopped, the students carefully examined the old map in the library.</p>
+          </li>
+          <li class="step" data-mode="structure" data-words="0">
+            <p class="label">02 · <span data-i18n="mStruct">Sentence Structure</span></p>
+            <h3><span class="u" data-i18n="structTitle">See who does what.</span></h3>
+            <p class="copy" data-i18n="structCopy" data-fade></p>
+            <p class="sentence step-sentence" data-render="structure" lang="en">After the rain stopped, the students carefully examined the old map in the library.</p>
+          </li>
+          <li class="step" data-mode="fade" data-words="0">
+            <p class="label">03 · <span data-i18n="mFade">Importance Fade</span></p>
+            <h3><span class="u" data-i18n="fadeTitle">Let the main idea stand out.</span></h3>
+            <p class="copy" data-i18n="fadeCopy" data-fade></p>
+            <p class="sentence step-sentence" data-render="fade" lang="en">After the rain stopped, the students carefully examined the old map in the library.</p>
+          </li>
+          <li class="step" data-mode="tree" data-words="0">
+            <p class="label">04 · <span data-i18n="mTree">Sentence Tree</span></p>
+            <h3><span class="u" data-i18n="treeTitle">See how the sentence is built.</span></h3>
+            <p class="copy" data-i18n="treeCopy" data-fade></p>
+            <p class="sentence step-sentence" data-render="tree" lang="en">After the rain stopped, the students carefully examined the old map in the library.</p>
+          </li>
+          <li class="step" data-mode="fade" data-words="1">
+            <p class="label">05 · <span data-i18n="mWords">Word check</span></p>
+            <h3><span class="u" data-i18n="wordsTitle">Spot the words you might not know.</span></h3>
+            <p class="copy" data-i18n="wordsCopy" data-fade></p>
+            <p class="sentence step-sentence" data-render="fade" data-words="1" lang="en">After the rain stopped, the students carefully examined the old map in the library.</p>
+          </li>
+        </ol>
       </div>
+      <p class="notice"><span class="label" data-i18n="noteLabel">Note</span> <span data-i18n="notice">Illustrative demonstration. This sentence is marked up by hand; it is not live language analysis.</span></p>
+    </div>
+  </section>
 
-      <div class="compare">
-        <h3 class="label" data-i18n="compare">Side by side</h3>
-        <div class="compare-grid" lang="en">
-          <figure><p class="sentence small" data-cmp="original"></p><figcaption class="label" data-i18n="mOrig">Original</figcaption></figure>
-          <figure><p class="sentence small" data-cmp="structure"></p><figcaption class="label" data-i18n="mStruct">Sentence Structure</figcaption></figure>
-          <figure><p class="sentence small" data-cmp="fade"></p><figcaption class="label" data-i18n="mFade">Importance Fade</figcaption></figure>
+  <!-- Light-to-dark zone -->
+  <div class="dark-zone" id="zone" data-scheme="dark">
+    <section class="adapt" id="adapt" aria-labelledby="fits-h">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="label" data-i18n="fitsLabel">Designed to fit the page</p>
+          <h2 id="fits-h" data-i18n="fitsTitle">Different pages. A familiar reading experience.</h2>
+        </div>
+        <div class="adapt-grid">
+          <div>
+            <p class="big-first" data-i18n="fitsBody" data-fade>REden’s themes can adapt to the background of the website you’re reading.</p>
+            <fieldset class="seg seg-sm" data-slide>
+              <legend class="label" data-i18n="surfLegend">Page background</legend>
+              <label><input type="radio" name="surface" value="auto" checked><span data-i18n="surfAuto">Automatic</span></label>
+              <label><input type="radio" name="surface" value="light"><span data-i18n="surfLight">Light</span></label>
+              <label><input type="radio" name="surface" value="dark"><span data-i18n="surfDark">Dark</span></label>
+            </fieldset>
+            <p class="hint" data-i18n="fitsNote">Illustrative: the same emphasis on a light and a dark page.</p>
+          </div>
+          <p class="sentence adapt-sentence" id="adapt-sentence" lang="en">After the rain stopped, the students carefully examined the old map in the library.</p>
         </div>
       </div>
     </section>
 
-    <!-- Fits the page -->
-    <section class="section fits" id="fits" aria-labelledby="fits-h">
-      <div class="section-head">
-        <p class="label" data-i18n="fitsLabel">Designed to fit the page</p>
-        <h2 id="fits-h" data-i18n="fitsTitle">Different pages. A familiar reading experience.</h2>
+    <div class="wrap">
+      <div class="two-up">
+        <section class="col" id="dev" aria-labelledby="dev-h">
+          <p class="tag" data-i18n="devLabel">Available in the preview</p>
+          <h2 id="dev-h" data-i18n="devTitle">Emphasis shaped by words and meaning.</h2>
+          <p data-i18n="devBody" data-fade>REden combines sentence structure with word frequency and word parts to choose which letters to bold. Important words receive stronger emphasis, while the full text stays visible.</p>
+        </section>
+        <section class="col" id="future" aria-labelledby="fut-h">
+          <p class="tag outline" data-i18n="futLabel">Future direction</p>
+          <h2 id="fut-h" data-i18n="futTitle">More languages. More ways to understand.</h2>
+          <p data-i18n="futBody" data-fade>Our long-term goal is to bring REden to more languages.</p>
+          <p class="hint" data-i18n="futNote">Languages build sentences differently, so subject–verb–object will not apply the same way everywhere.</p>
+        </section>
       </div>
-      <div class="fits-grid">
-        <div class="fits-text">
-          <p class="big-first" data-i18n="fitsBody">REden’s themes can adapt to the background of the website you’re reading.</p>
-          <p class="hint" data-i18n="fitsNote">Illustrative: the same emphasis shown on a light and a dark surface. This site itself stays monochrome.</p>
-        </div>
-        <figure class="surface light" lang="en">
-          <figcaption class="label" data-i18n="light">Light page</figcaption>
-          <p class="sentence small" data-surface="light"></p>
-        </figure>
-        <figure class="surface dark" lang="en">
-          <figcaption class="label" data-i18n="dark">Dark page</figcaption>
-          <p class="sentence small" data-surface="dark"></p>
-        </figure>
-      </div>
-    </section>
-
-    <!-- Development / Future -->
-    <div class="two-up">
-      <section class="section col" id="dev" aria-labelledby="dev-h">
-        <p class="tag" data-i18n="devLabel">In development</p>
-        <h2 id="dev-h" data-i18n="devTitle">Emphasis that learns what’s familiar to you.</h2>
-        <p data-i18n="devBody">We’re developing a personal word-frequency system to help tailor bolding to each reader. The goal is to adjust emphasis around the words you encounter often and those that may need more attention.</p>
-      </section>
-      <section class="section col" id="future" aria-labelledby="fut-h">
-        <p class="tag outline" data-i18n="futLabel">Future direction</p>
-        <h2 id="fut-h" data-i18n="futTitle">More languages. More ways to understand.</h2>
-        <p data-i18n="futBody">Our long-term goal is to bring REden to more languages, with reading support that respects their different structures. We also want to explore how personalized emphasis can help people studying another language.</p>
-        <p class="hint" data-i18n="futNote">Languages build sentences differently, so subject–verb–object will not apply the same way everywhere.</p>
-      </section>
     </div>
 
-    <!-- Waitlist -->
-    <section class="section join" id="join" aria-labelledby="join-h">
-      <div class="join-grid">
-        <div>
-          <p class="label" data-i18n="joinLabel">The waitlist</p>
-          <h2 id="join-h" data-i18n="joinTitle">Be the first to read the next edition.</h2>
-          <p data-i18n="joinBody">REden is pre-launch. Add your email to join the waitlist.</p>
+    <section class="get" id="get" aria-labelledby="get-h">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="label" data-i18n="dlLabel">Developer preview</p>
+          <h2 id="get-h" data-i18n="dlTitle">Get the extension.</h2>
+          <p class="get-lede" data-i18n="dlBody">One file for Chrome, Microsoft Edge and Firefox.</p>
         </div>
-        <form id="wl" novalidate>
-          <label for="email" class="label" data-i18n="emailLabel">Email address</label>
-          <div class="row">
-            <input id="email" type="email" autocomplete="email" inputmode="email" required aria-describedby="wl-proto wl-msg" placeholder="name@example.com">
-            <button class="btn primary" type="submit" data-i18n="cta1">Join the waitlist</button>
-          </div>
-          <p class="proto" id="wl-proto"><span class="label" data-i18n="protoLabel">Prototype</span> <span data-i18n="proto">This form is not connected to a waitlist service yet. Nothing you enter is sent or saved.</span></p>
-          <p class="msg" id="wl-msg" role="status"></p>
-        </form>
+        <div class="get-actions">
+          <a class="btn primary" href="downloads/reden-extension.zip" download data-i18n="dlExt">Download the extension (.zip)</a>
+          <a class="btn" href="downloads/reden-backend.zip" download data-i18n="dlBack">Download the backend (.zip)</a>
+        </div>
+        <div class="browsers">
+          <article>
+            <h3>Chrome</h3>
+            <ol><li data-i18n="s1">Unzip the extension file.</li><li data-i18n="sChrome2">Open <code>chrome://extensions</code> and turn on Developer mode.</li><li data-i18n="sChrome3">Choose Load unpacked and pick the unzipped folder.</li></ol>
+          </article>
+          <article>
+            <h3>Microsoft Edge</h3>
+            <ol><li data-i18n="s1">Unzip the extension file.</li><li data-i18n="sEdge2">Open <code>edge://extensions</code> and turn on Developer mode.</li><li data-i18n="sEdge3">Choose Load unpacked and pick the unzipped folder.</li></ol>
+          </article>
+          <article>
+            <h3>Firefox</h3>
+            <ol><li data-i18n="s1">Unzip the extension file.</li><li data-i18n="sFx2">Open <code>about:debugging#/runtime/this-firefox</code>.</li><li data-i18n="sFx3">Choose Load Temporary Add-on and pick manifest.json in the folder.</li></ol>
+          </article>
+        </div>
+        <div class="backend">
+          <p class="label" data-i18n="beLabel">Needs the backend</p>
+          <p data-i18n="beBody">Unzip the backend, run <code>pip install -r requirements.txt</code>, then <code>python server.py</code>.</p>
+        </div>
       </div>
     </section>
-  </main>
+  </div>
 
-  <footer class="footer">
+  <!-- Brand moment + waitlist -->
+  <section class="join" id="join" aria-labelledby="join-h">
+    <div class="wrap join-grid">
+      <div>
+        <img class="logo-join" src="assets/logo.png" width="128" height="128" alt="">
+        <p class="label" data-i18n="joinLabel">The waitlist</p>
+        <h2 id="join-h" data-i18n="joinTitle">Be the first to read the next edition.</h2>
+        <p data-i18n="joinBody">Get updates about REden and future releases.</p>
+      </div>
+      <form id="wl" novalidate>
+        <label for="email" class="label" data-i18n="emailLabel">Email address</label>
+        <div class="row">
+          <input id="email" type="email" autocomplete="email" inputmode="email" required aria-describedby="wl-proto wl-msg" placeholder="name@example.com">
+          <button class="btn" type="submit" data-i18n="cta1">Join the waitlist</button>
+        </div>
+        <p class="proto" id="wl-proto"><span class="label" data-i18n="protoLabel">Prototype</span> <span data-i18n="proto">This form is not connected to a waitlist service yet. Nothing you enter is sent or saved.</span></p>
+        <p class="msg" id="wl-msg" role="status"></p>
+      </form>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap foot">
     <p class="foot-logo"><b>RE</b>den</p>
-    <p data-i18n="footer">Pre-launch prototype site. The demonstrations on this page are illustrative.</p>
+    <p data-i18n="footer">REden · Find the core. Follow the meaning.</p>
     <p><a href="#top" data-i18n="top">Back to top</a></p>
-  </footer>
-</div>
+  </div>
+</footer>
 
 <script src="app.js"></script>
 </body>

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>REden — Read the book</title>
+<meta name="description" content="A scroll-driven book that explains REden: find the core, follow the meaning.">
+<link rel="icon" href="assets/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lobster+Two:ital,wght@0,400;0,700;1,400;1,700&family=Marcellus&display=swap">
+<link rel="stylesheet" href="book.css">
+</head>
+<body>
+
+<!-- Scroll-driven film (desktop, motion allowed) -->
+<section class="film" id="film" aria-label="REden, told as a book">
+  <div class="pin" id="pin">
+    <div class="intro" id="intro">
+      <img class="intro-logo" src="assets/logo.png" width="128" height="128" alt="REden">
+      <h1 id="introTitle"><span class="line">Find the core.</span> <span class="line">Follow the meaning.</span></h1>
+      <p class="intro-sub">A reading tool, told as a book.</p>
+    </div>
+    <span class="arrow" id="arrow" aria-hidden="true"></span>
+    <div class="cam" id="cam"><div class="world" id="world"></div></div>
+    <div class="vig" id="vig" aria-hidden="true"></div>
+    <p class="pager" id="pager" aria-hidden="true"></p>
+  </div>
+</section>
+
+<!-- Phone: simplified overhead book with page switching -->
+<section class="mobile" id="mobile" aria-label="REden, told as a book">
+  <div class="m-book">
+    <div class="m-page" id="mPage" aria-live="polite"></div>
+    <div class="m-nav">
+      <button type="button" id="mPrev">Previous</button>
+      <span id="mDots" aria-hidden="true"></span>
+      <button type="button" id="mNext">Next</button>
+    </div>
+  </div>
+</section>
+
+<!-- Plain reading version (no motion, no JS, or "skip") -->
+<article class="plain" id="plain" aria-label="REden, the introduction">
+  <header class="plain-head">
+    <img src="assets/logo.png" width="64" height="64" alt="REden">
+    <h1>Find the core. Follow the meaning.</h1>
+  </header>
+  <div id="plainBody"></div>
+  <p class="plain-foot"><a href="index.html">Full site</a> · <a href="#top" id="replay">Back to the animation</a></p>
+</article>
+
+<script src="book.js"></script>
+</body>
+</html>
