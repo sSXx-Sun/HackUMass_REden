@@ -1,0 +1,98 @@
+[vost#0:0/rawvideo @ 0x7f68ac000] Error submitting a packet to the muxer: Broken pipe
+    Last message repeated 1 times
+[out#0/rawvideo @ 0x7f680c3c0] Error muxing a packet
+[out#0/rawvideo @ 0x7f680c3c0] Task finished with error code: -32 (Broken pipe)
+[out#0/rawvideo @ 0x7f680c3c0] Terminating thread with return code -32 (Broken pipe)
+[vost#0:0/rawvideo @ 0x99686c000] Error submitting a packet to the muxer: Broken pipe
+    Last message repeated 1 times
+[out#0/rawvideo @ 0x996c403c0] Error muxing a packet
+[out#0/rawvideo @ 0x996c403c0] Task finished with error code: -32 (Broken pipe)
+[out#0/rawvideo @ 0x996c403c0] Terminating thread with return code -32 (Broken pipe)
+[vost#0:0/rawvideo @ 0x7ad0e8000] Error submitting a packet to the muxer: Broken pipe
+    Last message repeated 1 times
+[out#0/rawvideo @ 0x7acc4c3c0] Error muxing a packet
+[out#0/rawvideo @ 0x7acc4c3c0] Task finished with error code: -32 (Broken pipe)
+[out#0/rawvideo @ 0x7acc4c3c0] Terminating thread with return code -32 (Broken pipe)
+[vost#0:0/rawvideo @ 0xca90c4000] Error submitting a packet to the muxer: Broken pipe
+    Last message repeated 1 times
+[out#0/rawvideo @ 0xca84043c0] Error muxing a packet
+[out#0/rawvideo @ 0xca84043c0] Task finished with error code: -32 (Broken pipe)
+[out#0/rawvideo @ 0xca84043c0] Terminating thread with return code -32 (Broken pipe)
+[vost#0:0/rawvideo @ 0x996cdc000] Error submitting a packet to the muxer: Broken pipe
+    Last message repeated 1 times
+[out#0/rawvideo @ 0x9968243c0] Error muxing a packet
+[out#0/rawvideo @ 0x9968243c0] Task finished with error code: -32 (Broken pipe)
+[out#0/rawvideo @ 0x9968243c0] Terminating thread with return code -32 (Broken pipe)
+[vost#0:0/rawvideo @ 0xb00c28000] Error submitting a packet to the muxer: Broken pipe
+    Last message repeated 1 times
+[out#0/rawvideo @ 0xb008243c0] Error muxing a packet
+[out#0/rawvideo @ 0xb008243c0] Task finished with error code: -32 (Broken pipe)
+[out#0/rawvideo @ 0xb008243c0] Terminating thread with return code -32 (Broken pipe)
+[out#0/rawvideo @ 0x996c403c0] Error writing trailer: Broken pipe
+[out#0/rawvideo @ 0x996c403c0] Error closing file: Broken pipe
+[vost#0:0/rawvideo @ 0x8808ec000] Error submitting a packet to the muxer: Broken pipe
+    Last message repeated 1 times
+[out#0/rawvideo @ 0x8808303c0] Error muxing a packet
+[out#0/rawvideo @ 0x8808303c0] Task finished with error code: -32 (Broken pipe)
+[out#0/rawvideo @ 0x8808303c0] Terminating thread with return code -32 (Broken pipe)
+[vost#0:0/rawvideo @ 0x8be898000] Error submitting a packet to the muxer: Broken pipe
+    Last message repeated 1 times
+[out#0/rawvideo @ 0x8bf4243c0] Error muxing a packet
+[out#0/rawvideo @ 0x8bf4243c0] Task finished with error code: -32 (Broken pipe)
+[out#0/rawvideo @ 0x8bf4243c0] Terminating thread with return code -32 (Broken pipe)
+[out#0/rawvideo @ 0x8808303c0] Error writing trailer: Broken pipe
+[out#0/rawvideo @ 0x8808303c0] Error closing file: Broken pipe
+multiprocessing.pool.RemoteTraceback: 
+"""
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/multiprocessing/pool.py", line 125, in worker
+    result = (True, func(*args, **kwds))
+                    ~~~~^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/multiprocessing/pool.py", line 48, in mapstar
+    return list(map(*args))
+  File "/Users/sophiasun/HackUMass_ReaDeN/promo/build_video.py", line 383, in render_chunk
+    for f in range(f0, f1): p.stdin.write(frame_at(f / FPS).tobytes())
+                                          ~~~~~~~~^^^^^^^^^
+  File "/Users/sophiasun/HackUMass_ReaDeN/promo/build_video.py", line 373, in frame_at
+    A = one(pn, ps, pd, pd + lt, 1 + .07 * p); B = one(name, s, d, lt, .93 + .07 * p)
+                                                   ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/sophiasun/HackUMass_ReaDeN/promo/build_video.py", line 370, in one
+    im = FN[nm](ltm, st + ltm); return zoom(im, extra * (1 + .035 * min(ltm, du + TR) / du))
+                                       ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/sophiasun/HackUMass_ReaDeN/promo/build_video.py", line 87, in zoom
+    return img.resize((W, H), Image.BILINEAR, box=(x0, y0, x0 + bw, y0 + bh))
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/claude-501/-Users-sophiasun--claude-spares-spare-5PMYLc/68e709af-63b0-4c6c-b479-6c45627018c8/scratchpad/v/lib/python3.14/site-packages/PIL/Image.py", line 2440, in resize
+    return self._new(self.im.resize(size, resample, box))
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+ValueError: box offset can't be negative
+"""
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/sophiasun/HackUMass_ReaDeN/promo/build_video.py", line 391, in <module>
+    with Pool(min(8, os.cpu_count() or 4)) as pool: segs = pool.map(render_chunk, jobs, chunksize=1)
+                                                           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/multiprocessing/pool.py", line 367, in map
+    return self._map_async(func, iterable, mapstar, chunksize).get()
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/multiprocessing/pool.py", line 774, in get
+    raise self._value
+ValueError: box offset can't be negative
+
+real	0m9.591s
+user	1m4.753s
+sys	0m6.858s
+[out#0/rawvideo @ 0x7f680c3c0] Error writing trailer: Broken pipe
+[out#0/rawvideo @ 0x7f680c3c0] Error closing file: Broken pipe
+[out#0/rawvideo @ 0xb008243c0] Error writing trailer: Broken pipe
+[out#0/rawvideo @ 0xb008243c0] Error closing file: Broken pipe
+[out#0/rawvideo @ 0x8bf4243c0] Error writing trailer: Broken pipe
+[out#0/rawvideo @ 0x8bf4243c0] Error closing file: Broken pipe
+[out#0/rawvideo @ 0x9968243c0] Error writing trailer: Broken pipe
+[out#0/rawvideo @ 0x9968243c0] Error closing file: Broken pipe
+[out#0/rawvideo @ 0x7acc4c3c0] Error writing trailer: Broken pipe
+[out#0/rawvideo @ 0x7acc4c3c0] Error closing file: Broken pipe
+[out#0/rawvideo @ 0xca84043c0] Error writing trailer: Broken pipe
+[out#0/rawvideo @ 0xca84043c0] Error closing file: Broken pipe
